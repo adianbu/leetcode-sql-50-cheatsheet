@@ -1336,6 +1336,18 @@ WHERE low_fats = 'Y' AND recyclable = 'Y';
 - *What if you want products that are EITHER low fat OR recyclable?* → Use `OR` instead of `AND`.
 - *What if the columns stored 'Yes'/'No' instead of 'Y'/'N'?* → `WHERE low_fats = 'Yes' AND recyclable = 'Yes'` or use `LOWER(low_fats) = 'y'` for case-insensitive matching.
 
+
+**Example:**
+
+Input `Products`:
+| product_id | low_fats | recyclable |
+|---|---|---|
+| 1 | Y | N |
+| 2 | Y | Y |
+| 3 | N | Y |
+
+Output: `product_id = 2`
+
 ---
 
 ### Q2 — Find Customer Referee
@@ -1356,6 +1368,18 @@ WHERE referee_id != 2 OR referee_id IS NULL;
 **Follow-ups:**
 - *Why doesn't `WHERE referee_id != 2` work alone?* → In SQL, any comparison with NULL returns UNKNOWN (not TRUE or FALSE), so rows where `referee_id IS NULL` are silently excluded by `!=`. You must explicitly check for NULLs.
 - *Alternative using COALESCE?* → `WHERE COALESCE(referee_id, 0) != 2` — replaces NULL with 0 before comparison.
+
+
+**Example:**
+
+Input `Customer`:
+| id | name | referee_id |
+|---|---|---|
+| 1 | Will | NULL |
+| 2 | Jane | 1 |
+| 3 | Alex | 2 |
+
+Output: `Will, Jane`
 
 ---
 
@@ -1378,6 +1402,17 @@ WHERE area >= 3000000 OR population >= 25000000;
 - *How would you sort results by population descending?* → Add `ORDER BY population DESC`.
 - *What if the question asked for countries that are big by BOTH criteria?* → Replace `OR` with `AND`.
 
+
+**Example:**
+
+Input `World`:
+| name | population | area |
+|---|---|---|
+| Algeria | 37100000 | 2381741 |
+| Andorra | 78115 | 468 |
+
+Output: `Algeria` (population ≥ 25,000,000)
+
 ---
 
 ### Q4 — Article Views I
@@ -1399,6 +1434,17 @@ ORDER BY id;
 **Follow-ups:**
 - *Why DISTINCT?* → The same author might have viewed multiple of their own articles; we want each author listed once.
 - *How would you find authors who have NEVER viewed their own articles?* → `SELECT DISTINCT author_id FROM Views WHERE author_id NOT IN (SELECT DISTINCT author_id FROM Views WHERE author_id = viewer_id)`.
+
+
+**Example:**
+
+Input `Views`:
+| article_id | author_id | viewer_id |
+|---|---|---|
+| 1 | 3 | 5 |
+| 2 | 7 | 7 |
+
+Output: `id = 7`
 
 ---
 
@@ -1428,6 +1474,17 @@ SELECT tweet_id FROM Tweets WHERE CHAR_LENGTH(content) > 15;
 - *What's the difference between LENGTH and CHAR_LENGTH in MySQL?* → `LENGTH()` returns byte count; `CHAR_LENGTH()` returns character count. They differ for multi-byte characters (e.g., UTF-8 emojis take 4 bytes but count as 1 character).
 - *How would you filter tweets longer than 15 characters and containing a specific word?* → `WHERE CHAR_LENGTH(content) > 15 AND content LIKE '%word%'`.
 
+
+**Example:**
+
+Input `Tweets`:
+| tweet_id | content |
+|---|---|
+| 1 | "This is a short tweet" |
+| 2 | "This tweet content is way over fifteen characters long" |
+
+Output: `tweet_id = 2`
+
 ---
 
 ### Q6 — Replace Employee ID With The Unique Identifier
@@ -1448,6 +1505,21 @@ LEFT JOIN EmployeeUNI u ON e.id = u.id;
 **Follow-ups:**
 - *What if you wanted ONLY employees who have a unique ID?* → Use INNER JOIN instead.
 - *What if an employee could have multiple unique IDs?* → The LEFT JOIN would produce duplicate rows. You'd need `GROUP BY e.id` or a subquery to pick one.
+
+
+**Example:**
+
+Input `Employees` / `EmployeeUNI`:
+| id | name |   | id | unique_id |
+|---|---|---|---|---|
+| 1 | Alice |  | 1 | 101 |
+| 2 | Bob |  |  |  |
+
+Output:
+| unique_id | name |
+|---|---|
+| 101 | Alice |
+| NULL | Bob |
 
 ---
 
@@ -1476,6 +1548,16 @@ FROM Sales s JOIN Product p ON s.product_id = p.product_id;
 - *What's the difference between implicit comma join and explicit JOIN syntax?* → Functionally equivalent for INNER JOIN, but explicit JOIN is preferred for readability and to avoid accidentally writing a Cartesian product.
 - *How would you get only distinct product_name + year combinations?* → Add `SELECT DISTINCT` or `GROUP BY product_name, year`.
 
+
+**Example:**
+
+Input `Sales` / `Product`:
+| product_id | year | price |   | product_id | product_name |
+|---|---|---|---|---|---|
+| 100 | 2019 | 5000 |  | 100 | Nokia |
+
+Output: `product_name = Nokia, year = 2019, price = 5000`
+
 ---
 
 ### Q8 — Customer Who Visited but Did Not Make Any Transactions
@@ -1498,6 +1580,17 @@ GROUP BY customer_id;
 **Follow-ups:**
 - *Why not use NOT IN with a subquery?* → `NOT IN` with a subquery works but can be slow on large datasets and has NULL-trap issues. LEFT JOIN anti-join is typically faster.
 - *What if a single visit had some transactions but you only want visits with zero transactions?* → The current solution is correct — if any transaction exists for a visit_id, the LEFT JOIN finds a match and WHERE filters it out.
+
+
+**Example:**
+
+Input `Visits` / `Transactions`:
+| visit_id | customer_id |   | visit_id (Transactions) |
+|---|---|---|---|
+| 10 | 1 |  |  |
+| 11 | 2 |  | 11 |
+
+Output: `customer_id = 1, count_no_trans = 1`
 
 ---
 
@@ -1538,6 +1631,18 @@ WHERE temperature > prev_temp
 - *What if there are gaps in dates (missing days)?* → Both solutions handle this correctly via the `DATEDIFF = 1` check.
 - *What if multiple records exist for the same date?* → The problem guarantees unique dates, but if not, you'd need to aggregate per date first.
 
+
+**Example:**
+
+Input `Weather`:
+| id | recordDate | temperature |
+|---|---|---|
+| 1 | 2015-01-01 | 10 |
+| 2 | 2015-01-02 | 25 |
+| 3 | 2015-01-03 | 20 |
+
+Output: `id = 2`
+
 ---
 
 ### Q10 — Average Time of Process per Machine
@@ -1565,6 +1670,20 @@ GROUP BY machine_id;
 - *Could you solve this with a self-join instead?* → Yes: join `Activity a1` (start) with `Activity a2` (end) on `machine_id = machine_id AND process_id = process_id AND a1.type = 'start' AND a2.type = 'end'`, then `AVG(a2.timestamp - a1.timestamp)`.
 - *What if a process had no end event?* → The CASE WHEN would return NULL for end_time, and the subtraction would be NULL, which AVG automatically ignores.
 
+
+**Example:**
+
+Input `Activity`:
+| machine_id | process_id | activity_type | timestamp |
+|---|---|---|---|
+| 0 | 0 | start | 0.712 |
+| 0 | 0 | end | 1.520 |
+
+Output:
+| machine_id | processing_time |
+|---|---|
+| 0 | 0.808 |
+
 ---
 
 ### Q11 — Employee Bonus
@@ -1586,6 +1705,17 @@ WHERE b.bonus < 1000 OR b.empId IS NULL;
 **Follow-ups:**
 - *Why use `b.empId IS NULL` instead of `b.bonus IS NULL`?* → Both work here, but checking the join key (empId) is semantically clearer — it confirms the employee has no bonus record at all, not just that the bonus value is stored as NULL.
 - *How would you find employees whose bonus is exactly NULL (i.e., have no record)?* → `WHERE b.empId IS NULL`.
+
+
+**Example:**
+
+Input `Employee` / `Bonus`:
+| empId | name |   | empId | bonus |
+|---|---|---|---|---|
+| 3 | Brad |  | 2 | 500 |
+| 2 | Ryan |  |  |  |
+
+Output: `Brad, NULL` and `Ryan, 500` (Ryan's 500 < 1000)
 
 ---
 
@@ -1612,6 +1742,17 @@ ORDER BY s.student_id, sub.subject_name;
 **Follow-ups:**
 - *Why CROSS JOIN instead of just joining Examinations?* → Because a student who never took a subject exam would simply not appear in Examinations. CROSS JOIN ensures we generate the full matrix of student-subject pairs first, then LEFT JOIN fills in the count (0 for missing pairs via COUNT of a NULL column).
 - *Why does `COUNT(e.student_id)` return 0 for unmatched pairs?* → COUNT of a specific column counts non-NULL values. When the LEFT JOIN finds no match, `e.student_id` is NULL, so COUNT returns 0.
+
+
+**Example:**
+
+Input `Students` (1 row), `Subjects` (2 rows: Math, Physics), `Examinations` (1 row: student 1 / Math)
+
+Output:
+| student_id | subject_name | attended_exams |
+|---|---|---|
+| 1 | Math | 1 |
+| 1 | Physics | 0 |
 
 ---
 
@@ -1645,6 +1786,18 @@ HAVING COUNT(*) >= 5;
 - *What if a manager also reports to someone? Does that affect the result?* → No. We're counting how many employees list a given manager_id, regardless of whether that manager also has their own manager.
 - *How would you find managers with between 3 and 7 direct reports?* → `HAVING COUNT(*) BETWEEN 3 AND 7`.
 
+
+**Example** *(threshold shown as ≥2 for compactness; real problem uses ≥5):*
+
+Input `Employee`:
+| id | name | managerId |
+|---|---|---|
+| 101 | John | NULL |
+| 102 | Dan | 101 |
+| 103 | James | 101 |
+
+Output: `John` (2 direct reports)
+
 ---
 
 ### Q14 — Confirmation Rate
@@ -1668,6 +1821,17 @@ GROUP BY s.user_id;
 - *What happens when a user has no rows in Confirmations after LEFT JOIN?* → COUNT(*) returns 1 (the NULL row from the LEFT JOIN), and SUM returns 0, giving 0/1 = 0.00. ✓
 - *Alternative using AVG?* → `ROUND(AVG(CASE WHEN action = 'confirmed' THEN 1.0 ELSE 0 END), 2)` — but AVG ignores NULLs, so with LEFT JOIN producing NULLs, you'd need `COALESCE(action, 'timeout')` first.
 
+
+**Example:**
+
+Input `Signups` / `Confirmations`:
+| user_id |   | user_id | action |
+|---|---|---|---|
+| 3 |  | 3 | confirmed |
+| 3 |  | 3 | timeout |
+
+Output: `user_id = 3, confirmation_rate = 0.50`
+
 ---
 
 ### Q15 — Not Boring Movies
@@ -1689,6 +1853,18 @@ ORDER BY rating DESC;
 **Follow-ups:**
 - *How would you find even-ID non-boring movies?* → `WHERE id % 2 = 0 AND description <> 'boring'`.
 - *What if description could be 'Boring' or 'BORING' (different case)?* → Use `LOWER(description) <> 'boring'` for case-insensitive comparison.
+
+
+**Example:**
+
+Input `Cinema`:
+| id | movie | description | rating |
+|---|---|---|---|
+| 1 | War | great | 8.9 |
+| 2 | Science | fiction | 8.5 |
+| 3 | irish | boring | 6.2 |
+
+Output: `id=1, movie=War, rating=8.9` (id 3 is odd but "boring"; id 2 is even)
 
 ---
 
@@ -1715,6 +1891,13 @@ GROUP BY p.product_id;
 - *Why COALESCE(..., 0)?* → If a product has no sales at all, SUM(units) = 0 (NULL after LEFT JOIN), causing division by NULL. COALESCE replaces the NULL result with 0.
 - *Why is the date range in the JOIN condition rather than WHERE?* → Putting it in the ON clause allows the LEFT JOIN to still return the product row with NULLs when no sale falls in any valid price window. Putting it in WHERE would turn it into an INNER JOIN behavior.
 
+
+**Example:**
+
+Input `Prices` (product 1, valid 2019-02-17 to 2019-03-17) / `UnitsSold` (product 1: 20 units on 2019-02-25)
+
+Output: `product_id = 1, average_price = <price weighted by units>` (0 if no matching sales)
+
 ---
 
 ### Q17 — Project Employees I
@@ -1737,6 +1920,13 @@ GROUP BY p.project_id;
 **Follow-ups:**
 - *What if you also want the project with the highest average experience?* → Wrap in a subquery and add `ORDER BY average_years DESC LIMIT 1`.
 - *How would you get the total experience (not average) per project?* → Replace `AVG` with `SUM`.
+
+
+**Example:**
+
+Input `Project` (project 1: employees 1, 2) / `Employee` (1: 3yrs, 2: 5yrs)
+
+Output: `project_id = 1, average_years = 4.00`
 
 ---
 
@@ -1761,6 +1951,13 @@ ORDER BY percentage DESC, contest_id;
 - *Why multiply by 100.0 (not 100)?* → Forces floating-point division; integer division in some DB engines would truncate to 0 for all fractions.
 - *Could you solve this without a subquery?* → Yes, using a cross join: `CROSS JOIN (SELECT COUNT(*) AS total FROM Users) t` then divide by `t.total`.
 
+
+**Example:**
+
+Input `Users` (2 rows total) / `Register` (contest 1: 1 registrant)
+
+Output: `contest_id = 1, percentage = 50.00`
+
 ---
 
 ### Q19 — Queries Quality and Percentage
@@ -1784,6 +1981,17 @@ GROUP BY query_name;
 **Follow-ups:**
 - *What does `IF(rating < 3, 1, 0)` do?* → MySQL shorthand for `CASE WHEN rating < 3 THEN 1 ELSE 0 END`. Returns 1 for poor queries, 0 otherwise — making SUM() count them.
 - *Why add `WHERE query_name IS NOT NULL`?* → NULL query names would form a group that may not be meaningful; this filters them out to match expected output.
+
+
+**Example:**
+
+Input `Queries`:
+| query_name | rating | position |
+|---|---|---|
+| Dog | 5 | 1 |
+| Dog | 1 | 3 |
+
+Output: `Dog, quality ≈ 2.67, poor_query_percentage = 50.00`
 
 ---
 
@@ -1811,6 +2019,17 @@ GROUP BY DATE_FORMAT(trans_date, '%Y-%m'), country;
 **Follow-ups:**
 - *Why not just filter WHERE state = 'approved' for approved counts?* → That would exclude non-approved transactions from the total count. We need all transactions in the group, then conditionally aggregate the approved ones.
 - *How would you also add an approval rate column?* → `ROUND(SUM(CASE WHEN state = 'approved' THEN 1 ELSE 0 END) / COUNT(*), 2) AS approval_rate`.
+
+
+**Example:**
+
+Input `Transactions`:
+| trans_date | country | state | amount |
+|---|---|---|---|
+| 2018-12-18 | US | approved | 1000 |
+| 2018-12-19 | US | declined | 2000 |
+
+Output: `month=2018-12, country=US, trans_count=2, approved_count=1, trans_total_amount=3000, approved_total_amount=1000`
 
 ---
 
@@ -1854,6 +2073,13 @@ WHERE (customer_id, order_date) IN (
 - *What if two orders are placed on the same day for the same customer (tied first order)?* → Both solutions handle this via MIN date match. RANK() would assign rank=1 to both tied rows; the subquery picks all rows with the minimum date.
 - *What if you wanted the percentage for LAST orders instead?* → Change `MIN(order_date)` to `MAX(order_date)`, or `ORDER BY order_date DESC` in the window function.
 
+
+**Example:**
+
+Input `Delivery` (customer 1's first order: order_date = pref_delivery_date)
+
+Output: `immediate_percentage = 100.00` if that customer's earliest order matched their preferred date.
+
 ---
 
 ### Q22 — Game Play Analysis IV
@@ -1885,6 +2111,18 @@ JOIN Activity a
 - *Why divide by count of first_login rather than total Activity rows?* → The denominator should be total distinct players, not total activity events.
 - *How would you find the fraction who played again within 7 days?* → `AND a.event_date BETWEEN DATE_ADD(f.login_date, INTERVAL 1 DAY) AND DATE_ADD(f.login_date, INTERVAL 7 DAY)`.
 
+
+**Example:**
+
+Input `Activity`:
+| player_id | event_date |
+|---|---|
+| 1 | 2016-03-01 |
+| 1 | 2016-03-02 |
+| 2 | 2017-06-25 |
+
+Output: `fraction = 0.50` (1 of 2 players returned the very next day)
+
 ---
 
 ### Q23 — Number of Unique Subjects Taught by Each Teacher
@@ -1905,6 +2143,17 @@ GROUP BY teacher_id;
 **Follow-ups:**
 - *Why COUNT DISTINCT and not just COUNT?* → A teacher might teach the same subject in multiple departments. We want unique subjects.
 - *How would you find teachers who teach more than 3 distinct subjects?* → Add `HAVING COUNT(DISTINCT subject_id) > 3`.
+
+
+**Example:**
+
+Input `Teacher`:
+| teacher_id | subject_id | dept_id |
+|---|---|---|
+| 1 | 2 | 3 |
+| 1 | 2 | 4 |
+
+Output: `teacher_id = 1, cnt = 1` (same subject, two departments)
 
 ---
 
@@ -1929,6 +2178,17 @@ GROUP BY activity_date;
 **Follow-ups:**
 - *Why 29 days in the interval instead of 30?* → BETWEEN is inclusive. Day 0 (2019-07-27) + 29 preceding days = 30 total days.
 - *What if you wanted a rolling 7-day active user count per day?* → Use a window function: `COUNT(DISTINCT user_id) OVER (ORDER BY activity_date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW)`.
+
+
+**Example:**
+
+Input `Activity`:
+| user_id | activity_date |
+|---|---|
+| 1 | 2019-07-20 |
+| 2 | 2019-07-20 |
+
+Output: `day = 2019-07-20, active_users = 2`
 
 ---
 
@@ -1970,6 +2230,17 @@ WHERE (product_id, year) IN (
 - *What if a product has multiple records in its first year?* → Both solutions return all of them (RANK gives rank=1 to tied rows; the IN subquery matches all rows with the minimum year).
 - *How would you get the LAST year's data instead?* → Change `MIN(year)` to `MAX(year)` or `ORDER BY year DESC`.
 
+
+**Example:**
+
+Input `Sales`:
+| product_id | year | quantity | price |
+|---|---|---|---|
+| 100 | 2008 | 10 | 5000 |
+| 100 | 2009 | 12 | 5000 |
+
+Output: `product_id=100, first_year=2008, quantity=10, price=5000`
+
 ---
 
 ### Q26 — Classes With at Least 5 Students
@@ -1991,6 +2262,18 @@ HAVING COUNT(student) >= 5;
 **Follow-ups:**
 - *Why HAVING and not WHERE?* → WHERE cannot reference aggregate functions. HAVING filters after aggregation.
 - *How would you also show the student count next to each class?* → Add `COUNT(student) AS student_count` to the SELECT.
+
+
+**Example** *(threshold shown as ≥2 for compactness; real problem uses ≥5):*
+
+Input `Courses`:
+| student | class |
+|---|---|
+| A | Math |
+| B | Math |
+| C | English |
+
+Output: `class = Math`
 
 ---
 
@@ -2014,6 +2297,17 @@ ORDER BY user_id ASC;
 - *Why COUNT DISTINCT?* → The problem says distinct followers; the data might have duplicate (user_id, follower_id) pairs.
 - *How would you find users with more than 100 followers?* → Add `HAVING COUNT(DISTINCT follower_id) > 100`.
 
+
+**Example:**
+
+Input `Followers`:
+| user_id | follower_id |
+|---|---|
+| 0 | 1 |
+| 0 | 2 |
+
+Output: `user_id = 0, followers_count = 2`
+
 ---
 
 ### Q28 — Biggest Single Number
@@ -2036,6 +2330,13 @@ SELECT MAX(num) AS num FROM singles;
 - *Why wrap in a CTE/subquery instead of `HAVING COUNT(*) = 1 ORDER BY num DESC LIMIT 1`?* → `LIMIT 1` with no result returns zero rows, not NULL. `MAX()` on an empty set returns NULL as required.
 - *What if all numbers appear more than once?* → The CTE is empty, MAX returns NULL. ✓
 
+
+**Example:**
+
+Input `MyNumbers`: `[8, 8, 3, 3, 1, 4, 5, 6]`
+
+Output: `num = 6` (largest value appearing exactly once)
+
 ---
 
 ### Q29 — Customers Who Bought All Products
@@ -2057,6 +2358,18 @@ HAVING COUNT(DISTINCT product_key) = (SELECT COUNT(*) FROM Product);
 **Follow-ups:**
 - *What if a customer bought a product not in the Product table?* → The count would still be compared against total products; extra purchases don't prevent the customer from qualifying.
 - *How would you solve this with a NOT EXISTS (relational division) approach?* → `SELECT DISTINCT c.customer_id FROM Customer c WHERE NOT EXISTS (SELECT p.product_key FROM Product p WHERE NOT EXISTS (SELECT 1 FROM Customer c2 WHERE c2.customer_id = c.customer_id AND c2.product_key = p.product_key))`.
+
+
+**Example:**
+
+Input `Customer` (customer_id, product_key) / `Product` (2 total products: 5, 6):
+| customer_id | product_key |
+|---|---|
+| 1 | 5 |
+| 1 | 6 |
+| 2 | 5 |
+
+Output: `customer_id = 1`
 
 ---
 
@@ -2081,6 +2394,18 @@ ORDER BY m.employee_id;
 **Follow-ups:**
 - *Why INNER JOIN and not LEFT JOIN here?* → We only want employees who have at least one direct report. If we used LEFT JOIN (from managers side), managers with 0 reports would appear with COUNT=0, which is excluded by the problem.
 - *How would you include managers with zero reports?* → Reverse the join direction and use LEFT JOIN from the managers table.
+
+
+**Example:**
+
+Input `Employees`:
+| employee_id | name | reports_to | age |
+|---|---|---|---|
+| 9 | Hercy | NULL | 43 |
+| 6 | Alice | 9 | 41 |
+| 4 | Bob | 9 | 36 |
+
+Output: `employee_id=9, name=Hercy, reports_count=2, average_age=39`
 
 ---
 
@@ -2123,6 +2448,18 @@ WHERE primary_flag = 'Y' OR dept_count = 1;
 - *Why use UNION (not UNION ALL) in your solution?* → To avoid duplicating employees who are in only one department AND have primary_flag='Y' (they'd match both subqueries).
 - *What if an employee has multiple departments all with primary_flag='Y'?* → The problem guarantees at most one 'Y' per employee, but if multiple existed, the first subquery would return all of them.
 
+
+**Example:**
+
+Input `Employee`:
+| employee_id | department_id | primary_flag |
+|---|---|---|
+| 1 | 1 | N |
+| 1 | 2 | Y |
+| 2 | 1 | Y |
+
+Output: `(1, 2)` and `(2, 1)` — employee 1's flagged dept, employee 2's only dept.
+
 ---
 
 ### Q32 — Triangle Judgement
@@ -2142,6 +2479,17 @@ FROM Triangle;
 **Follow-ups:**
 - *Why check all three conditions?* → For valid triangle: each side must be less than the sum of the other two. For positive integers, if x ≤ y ≤ z, only `x + y > z` is needed, but checking all three is safe and clear.
 - *How would you do this with CASE WHEN?* → `CASE WHEN x + y > z AND y + z > x AND z + x > y THEN 'Yes' ELSE 'No' END`.
+
+
+**Example:**
+
+Input `Triangle`:
+| x | y | z |
+|---|---|---|
+| 13 | 15 | 30 |
+| 10 | 20 | 15 |
+
+Output: `13,15,30 → No`, `10,20,15 → Yes`
 
 ---
 
@@ -2170,6 +2518,19 @@ WHERE num = next_num AND num = prev_num;
 - *What if you wanted N consecutive occurrences (not just 3)?* → Use multiple LEAD/LAG calls for N-1 steps, or use a self-join approach comparing `id` differences.
 - *Why DISTINCT?* → The same number might appear in multiple groups of 3 consecutive rows; DISTINCT returns it once.
 - *What if consecutive means same date rather than sequential row?* → Change the ORDER BY in the window function from `id` to the date column.
+
+
+**Example:**
+
+Input `Logs`:
+| id | num |
+|---|---|
+| 1 | 1 |
+| 2 | 1 |
+| 3 | 1 |
+| 4 | 2 |
+
+Output: `ConsecutiveNums = 1`
 
 ---
 
@@ -2202,6 +2563,19 @@ LEFT JOIN ranked r ON ap.product_id = r.product_id AND r.rnk = 1;
 - *Why a separate CTE for all_products?* → To capture products that have no price change at or before the target date; they won't appear in the `ranked` CTE (filtered by WHERE), so we LEFT JOIN from the complete product list.
 - *Alternative using NOT EXISTS or subquery with MAX?* → `WHERE change_date = (SELECT MAX(change_date) FROM Products p2 WHERE p2.product_id = p1.product_id AND change_date <= '2019-08-16')`.
 
+
+**Example:**
+
+Input `Products`:
+| product_id | new_price | change_date |
+|---|---|---|
+| 1 | 20 | 2019-08-14 |
+| 2 | 50 | 2019-08-14 |
+| 1 | 30 | 2019-08-15 |
+| 1 | 10 | 2019-08-20 |
+
+Output (as of 2019-08-16): `product_id=1, price=30`, `product_id=2, price=50`
+
 ---
 
 ### Q35 — Last Person to Fit in the Bus
@@ -2230,6 +2604,18 @@ LIMIT 1;
 **Follow-ups:**
 - *Why ORDER BY turn DESC LIMIT 1 instead of MAX(turn)?* → We want the person's name, not just the turn number. Ordering by turn descending and taking the first matching row gives us the last person within the weight limit.
 - *What if two people board on the same turn?* → The problem guarantees unique turns.
+
+
+**Example:**
+
+Input `Queue`:
+| person_id | person_name | weight | turn |
+|---|---|---|---|
+| 5 | Alice | 250 | 1 |
+| 4 | Bob | 175 | 2 |
+| 3 | Alex | 350 | 3 |
+
+Output: `person_name = Alex` (cumulative weight 775 ≤ 1000; add a 4th heavy passenger to exceed it)
 
 ---
 
@@ -2260,6 +2646,18 @@ FROM Accounts;
 - *Why not GROUP BY a CASE expression?* → `GROUP BY CASE WHEN income < 20000 THEN 'Low' ... END` would work, but if a category has 0 accounts, it simply won't appear in the result. UNION ALL guarantees all categories appear with 0 if needed.
 - *Why UNION ALL over UNION?* → The three categories are mutually exclusive labels — no duplicates are possible. UNION ALL is faster as it skips the deduplication step.
 
+
+**Example:**
+
+Input `Accounts` (3 rows: incomes 10000, 25000, 60000)
+
+Output:
+| category | accounts_count |
+|---|---|
+| Low Salary | 1 |
+| Average Salary | 1 |
+| High Salary | 1 |
+
 ---
 
 ### Q37 — Employees Whose Manager Left the Company
@@ -2284,6 +2682,13 @@ ORDER BY e.employee_id;
 **Follow-ups:**
 - *Alternative using NOT IN?* → `WHERE salary < 30000 AND manager_id IS NOT NULL AND manager_id NOT IN (SELECT employee_id FROM Employees)` — be careful: if any employee_id is NULL, NOT IN returns no rows. The LEFT JOIN approach is safer.
 - *Why check `manager_id IS NOT NULL`?* → To exclude employees with no manager at all (top-level). We only want employees who HAD a manager that no longer exists.
+
+
+**Example:**
+
+Input `Employees` (manager_id 13 exists) / employee with `manager_id = 13` doesn't exist in table:
+
+Output: employees with `salary < 30000` and a non-existent `manager_id` — e.g. `employee_id = 11`
 
 ---
 
@@ -2311,6 +2716,23 @@ ORDER BY id;
 **Follow-ups:**
 - *How would this work with a window function LEAD/LAG instead?* → `CASE WHEN id % 2 = 1 THEN COALESCE(LEAD(student) OVER (ORDER BY id), student) ELSE LAG(student) OVER (ORDER BY id) END` — swap the student values directly instead of swapping IDs.
 - *What if you had groups of 3 seats to rotate instead of 2?* → Use modulo 3 and adjust with +1, +1, -2 pattern.
+
+
+**Example:**
+
+Input `Seat`:
+| id | student |
+|---|---|
+| 1 | Abbot |
+| 2 | Doris |
+| 3 | Emerson |
+
+Output:
+| id | student |
+|---|---|
+| 1 | Doris |
+| 2 | Abbot |
+| 3 | Emerson |
 
 ---
 
@@ -2341,6 +2763,13 @@ UNION ALL
 **Follow-ups:**
 - *Why UNION ALL instead of UNION?* → The two results are a user name and a movie title — they serve different purposes but could theoretically be the same string. UNION ALL is safer to avoid accidentally merging them.
 - *What does `BETWEEN '2020-02-01' AND '2020-02-29'` do?* → Filters to February 2020 inclusive. Could also use `YEAR(created_at) = 2020 AND MONTH(created_at) = 2`.
+
+
+**Example:**
+
+Input `MovieRating` / `Users` / `Movies` — one user rates 3 movies (most of anyone); one movie averages highest rating in Feb 2020.
+
+Output (2 rows): `results = <top rater's name>` then `results = <top movie's title>`
 
 ---
 
@@ -2377,6 +2806,13 @@ ORDER BY visited_on;
 - *Why `rn >= 7` and not `rn > 6`?* → Same condition; rn >= 7 is more readable as "the 7th day onwards = first complete 7-day window".
 - *How would you compute a 30-day rolling average?* → Change `6 PRECEDING` to `29 PRECEDING` and `rn >= 7` to `rn >= 30`.
 
+
+**Example:**
+
+Input `Customer` — 8 days of visits, each with a daily total amount.
+
+Output: rolling 7-day `amount` and `average_amount` starting from day 7 (the first day with a full week of history).
+
 ---
 
 ### Q41 — Friend Requests II: Who Has the Most Friends
@@ -2403,6 +2839,18 @@ LIMIT 1;
 **Follow-ups:**
 - *Why UNION ALL and not UNION here?* → UNION would remove duplicate entries for the same pair (if (A,B) and (B,A) both exist). UNION ALL correctly counts both sides of each friendship.
 - *What if there's a tie for most friends?* → LIMIT 1 returns only one. To return all tied users, use a subquery: `WHERE num = (SELECT MAX(num) FROM ...)`.
+
+
+**Example:**
+
+Input `RequestAccepted`:
+| requester_id | accepter_id |
+|---|---|
+| 1 | 2 |
+| 1 | 3 |
+| 2 | 3 |
+
+Output: `id = 1, num = 2` (most friends)
 
 ---
 
@@ -2438,6 +2886,18 @@ AND (lat, lon) IN (
 - *How would you rewrite the tuple comparison in standard SQL?* → `EXISTS (SELECT 1 FROM Insurance i2 WHERE i.lat = i2.lat AND i.lon = i2.lon AND i2.pid != i.pid)` but inverted with `NOT EXISTS` for the unique location condition.
 - *What does "unique location" mean?* → Exactly one policyholder at that (lat, lon) pair — `HAVING COUNT(*) = 1`.
 
+
+**Example:**
+
+Input `Insurance`:
+| pid | tiv_2015 | tiv_2016 | lat | lon |
+|---|---|---|---|---|
+| 1 | 10 | 5 | 10 | 10 |
+| 2 | 10 | 5 | 20 | 20 |
+| 3 | 20 | 5 | 10 | 10 |
+
+Output: `tiv_2016 = 10` (pids 1 and 2 qualify: shared tiv_2015, unique lat/lon)
+
 ---
 
 ### Q43 — Department Top Three Salaries
@@ -2465,6 +2925,13 @@ WHERE r.salary_rank <= 3;
 - *Why DENSE_RANK over RANK or ROW_NUMBER?* → DENSE_RANK handles ties correctly: if two people share the 2nd highest salary, both get rank 2, and the next distinct salary gets rank 3. RANK would skip to rank 4. ROW_NUMBER would arbitrarily pick one.
 - *What if a department has fewer than 3 unique salary levels?* → That's fine — `salary_rank <= 3` will just return all available employees.
 - *How would you solve this without window functions (older SQL)?* → `WHERE (SELECT COUNT(DISTINCT e2.salary) FROM Employee e2 WHERE e2.departmentId = e.departmentId AND e2.salary > e.salary) < 3`.
+
+
+**Example:**
+
+Input `Employee` (dept 1: salaries 90000, 90000, 80000, 70000)
+
+Output: top 3 distinct salary *levels* → all four employees appear (two tie at rank 1).
 
 ---
 
@@ -2496,6 +2963,13 @@ FROM Users ORDER BY user_id;
 - *What if the name is a single character?* → `RIGHT(name, 0)` returns empty string; `SUBSTRING(name, 2)` returns empty string. Both are safe.
 - *How would you capitalize every word (title case)?* → MySQL doesn't have a built-in title case function. You'd need a stored function or complex REGEX_REPLACE (MySQL 8.0+).
 
+
+**Example:**
+
+Input `Users`: `name = 'aLice'`
+
+Output: `name = 'Alice'`
+
 ---
 
 ### Q45 — Patients With a Condition
@@ -2517,6 +2991,17 @@ WHERE conditions LIKE 'DIAB1%' OR conditions LIKE '% DIAB1%';
 - *Why two LIKE conditions?* → `DIAB1%` catches it as the first code; `% DIAB1%` catches it as any subsequent code (preceded by a space). Together they cover all positions.
 - *Why not just `LIKE '%DIAB1%'`?* → That would falsely match codes like 'XDIAB1' or 'RDIAB11'. The word-boundary approach ensures we match only whole codes starting with 'DIAB1'.
 - *How would you solve this in MySQL 8.0+ with REGEXP?* → `WHERE conditions REGEXP '(^| )DIAB1'` — cleaner and handles the word boundary in one pattern.
+
+
+**Example:**
+
+Input `Patients`:
+| patient_id | conditions |
+|---|---|
+| 1 | YFEV COUGH |
+| 2 | DIAB100 MYOP |
+
+Output: `patient_id = 2`
 
 ---
 
@@ -2541,6 +3026,18 @@ WHERE id NOT IN (
 **Follow-ups:**
 - *Why the extra wrapping `SELECT * FROM (...) tmp`?* → MySQL doesn't allow modifying a table and selecting from it in the same query directly. The nested subquery forces evaluation before the DELETE, avoiding the "can't reopen table" error.
 - *Alternative approach with self-join DELETE?* → `DELETE p1 FROM Person p1 JOIN Person p2 WHERE p1.email = p2.email AND p1.id > p2.id` — deletes rows where a smaller id exists for the same email.
+
+
+**Example:**
+
+Input `Person`:
+| id | email |
+|---|---|
+| 1 | a@b.com |
+| 2 | a@b.com |
+| 3 | c@d.com |
+
+Output (after DELETE): rows `id = 1, 3` remain.
 
 ---
 
@@ -2581,6 +3078,13 @@ SELECT (
 - *Why wrap in an outer SELECT?* → `SELECT DISTINCT ... LIMIT 1 OFFSET 1` alone returns zero rows when no second salary exists. The scalar subquery `SELECT (...)` returns NULL for an empty subquery — matching the expected output.
 - *How would you get the Nth highest salary?* → `LIMIT 1 OFFSET N-1` in the inner query.
 
+
+**Example:**
+
+Input `Employee.salary`: `[100, 200, 300]`
+
+Output: `SecondHighestSalary = 200`
+
 ---
 
 ### Q48 — Group Sold Products By The Date
@@ -2605,6 +3109,17 @@ ORDER BY sell_date ASC;
 - *What is GROUP_CONCAT?* → A MySQL aggregate function that concatenates non-NULL values from a group into a single string. You can specify ORDER BY and SEPARATOR.
 - *What's the default separator for GROUP_CONCAT?* → A comma `,`. Specifying `SEPARATOR ','` is explicit but redundant here; useful when you need a different separator.
 - *Is there a GROUP_CONCAT equivalent in other databases?* → PostgreSQL uses `STRING_AGG(col, ',')`. SQL Server uses `STRING_AGG(col, ',')` (2017+). Both support `WITHIN GROUP (ORDER BY ...)`.
+
+
+**Example:**
+
+Input `Activities`:
+| sell_date | product |
+|---|---|
+| 2020-05-30 | Headphone |
+| 2020-05-30 | Basketball |
+
+Output: `sell_date=2020-05-30, num_sold=2, products='Basketball,Headphone'`
 
 ---
 
@@ -2641,6 +3156,13 @@ HAVING SUM(o.unit) >= 100;
 - *What's the difference between `WHERE YEAR() AND MONTH()` vs `WHERE date BETWEEN '2020-02-01' AND '2020-02-29'`?* → Both work for Feb 2020. The BETWEEN approach is often faster as it can use an index on the date column; YEAR()/MONTH() functions prevent index usage in many databases.
 - *What if an order spans multiple months?* → The problem treats order_date as a single day; each row is one order. No spanning issue.
 
+
+**Example:**
+
+Input `Products` / `Orders` (product 1: 50 units on 2020-02-05, 60 units on 2020-02-10)
+
+Output: `product_name=<name>, unit=110` (≥100 in Feb 2020)
+
 ---
 
 ### Q50 — Find Users With Valid E-Mails
@@ -2671,6 +3193,17 @@ WHERE mail REGEXP '^[A-Za-z][A-Za-z0-9_\\.\\-]*@leetcode\\.com$';
 - *What does `\.` mean in regex?* → `.` in regex matches any character; `\.` escapes it to match a literal dot.
 - *Why anchor with `^` and `$`?* → Without anchors, `REGEXP` would match emails that contain the pattern anywhere (e.g., 'x@leetcode.com@evil.com'). Anchors enforce the pattern matches the entire string.
 - *How would you validate emails more strictly (e.g., no consecutive dots)?* → Add a negative lookahead `(?!\.\.)` or use a more complex pattern. SQL regex support varies by database.
+
+
+**Example:**
+
+Input `Users`:
+| user_id | mail |
+|---|---|
+| 1 | Winston@leetcode.com |
+| 2 | annie_______2@leetcode.com@leetcode.com |
+
+Output: `user_id = 1` only (row 2 fails the `$` anchor — extra text after the domain).
 
 ---
 
