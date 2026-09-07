@@ -40,6 +40,12 @@
 ### Problem
 Two vendor feeds `gdp_df1` and `gdp_df2` hold country-year GDP history. UNION them and compute YoY growth rate (current − previous) / previous × 100, rounded to 2 decimal places. The earliest year per country returns NULL.
 
+### Clarifying Questions to Ask
+- **Duplicate country-year rows:** If the same country-year appears in both feeds, should I deduplicate first or keep all rows? *(UNION ALL keeps both — clarify if AVG/dedup is needed.)*
+- **Earliest year:** The earliest year per country always returns NULL for growth rate — is that expected? *(Yes — no prior year to compare against.)*
+- **Rounding:** Should the result always show 2 decimal places (e.g., 4.30 not 4.3)? *(Yes — ROUND to 2 dp.)*
+- **Ordering:** Should results be sorted by Country then Year, or by Year then Country? *(Country ASC, Year ASC per the example output.)*
+
 ### Schema
 ```
 gdp_df1 / gdp_df2: country (text), year (int), gdp (float)
@@ -112,6 +118,12 @@ A: Use `LAG(gdp, 3)` to get the GDP from 3 years ago, then `(gdp / lag_gdp)^(1/3
 ### Problem
 Count how many distinct vendors in `duplicate_product_listing` have posted ≥ 2 listings with the same `(product_name, description)` pair.
 
+### Clarifying Questions to Ask
+- **Definition of "duplicate":** Are duplicates based on identical product names only, or a combination of name + price + category? *(Clarify the uniqueness key.)*
+- **Output:** Should I return the duplicate records themselves, a count, or just a list of names that have duplicates? *(Ask — usually return the duplicate rows or the name + count.)*
+- **Case sensitivity:** Should "Widget" and "widget" be treated as duplicates? *(Ask — typically case-insensitive for product names.)*
+- **Threshold:** Is anything with count > 1 a duplicate, or is there a different threshold? *(count > 1 unless stated otherwise.)*
+
 ### Schema
 ```
 duplicate_product_listing: listing_id, vendor_id, product_name, description
@@ -175,6 +187,12 @@ A: In SQL, NULL ≠ NULL in GROUP BY — two rows with NULL description are trea
 
 ### Problem
 Count companies in `rjp_listings` that have ≥ 2 job postings with the same `(title, description)`.
+
+### Clarifying Questions to Ask
+- **Duplicate definition:** Are job postings duplicates if they share the same title + company, or also same location/date? *(Confirm the uniqueness key before grouping.)*
+- **Output:** Return the duplicate rows, or just the identifier columns with count? *(Ask — usually the minimum identifying fields.)*
+- **Time window:** Should duplicates be detected within a specific date range (e.g., same week), or across all time? *(Clarify if a time window applies.)*
+- **What to keep:** If deduplicating, which occurrence is "correct" — first posted, or most recent? *(Ask — affects how you'd clean the data.)*
 
 ### Schema
 ```
@@ -243,6 +261,12 @@ WHERE job_id NOT IN (
 ### Problem
 Find dates where the number of downloads by free users exceeds downloads by paid users.
 
+### Clarifying Questions to Ask
+- **"Trend" definition:** Is a download trend the raw count per period, or a growth rate vs prior period? *(Clarify — trend can mean either.)*
+- **Time granularity:** Should downloads be grouped by day, week, or month? *(Confirm the time bucket.)*
+- **NULL downloads:** If a customer has 0 downloads in a period, should that period appear with 0 or be omitted? *(Usually 0 — requires a date spine.)*
+- **Customer scope:** Should I include all customers or only those who downloaded at least once? *(Clarify — affects the base set.)*
+
 ### Schema
 ```
 user_downloads: user_id, date, downloads, user_type ('free'/'paid')
@@ -301,6 +325,12 @@ A: `SUM(free) / NULLIF(SUM(paid), 0)` — use NULLIF to avoid division by zero.
 
 ### Problem
 From `cmr_percentage_rev`, compute total revenue per calendar month and the % change vs prior month. Earliest month gets NULL for change.
+
+### Clarifying Questions to Ask
+- **MoM formula:** Is month-over-month change absolute (current − prior) or percentage ((current − prior) / prior × 100)? *(Confirm — the slug says "change", not "growth rate".)*
+- **First month:** The first month in the data has no prior month — should it return NULL or 0? *(NULL — no prior value to compare.)*
+- **Scope:** Is revenue across all products/regions combined, or broken down per product/region? *(Confirm the grouping level.)*
+- **Calendar months:** Should gaps in months (e.g., no sales in March) be filled with 0 or omitted? *(Usually omit unless a date spine is required.)*
 
 ### Schema
 ```
@@ -377,6 +407,12 @@ A: ROWS counts physical rows; RANGE uses the ORDER BY column value and includes 
 ### Problem
 Find departments where the department's average salary is higher than the overall company average salary.
 
+### Clarifying Questions to Ask
+- **"Cross-department" comparison:** Am I comparing each employee to the average of other departments, or comparing department averages to each other? *(Clarify — common interpretation: employees earning above the avg of a different dept.)*
+- **NULL salaries:** Should employees with NULL salary be included in department averages? *(Excluded by AVG automatically — confirm.)*
+- **Output granularity:** Return individual employees, or department-level aggregates? *(Ask — determines GROUP BY level.)*
+- **Which departments:** All departments, or only specific ones named in the problem? *(Clarify scope.)*
+
 ### Schema
 ```
 employees: emp_id, name, salary, department_id
@@ -434,6 +470,11 @@ A: `AVG(e.salary) - (SELECT AVG(salary) FROM employees) AS diff_from_avg`
 ### Problem
 Sum the population of all Japanese cities from a `city` table.
 
+### Clarifying Questions to Ask
+- **Filter:** Are we summing population for ALL Japanese cities, or only cities matching a specific condition (e.g., population > threshold)? *(Confirm the WHERE clause conditions.)*
+- **NULL population:** If a city's population is NULL, should it be excluded from the sum or counted as 0? *(Excluded by SUM automatically — confirm.)*
+- **Output format:** Should the result be a single scalar value, or broken down by region/prefecture? *(Single row unless specified.)*
+
 ### Schema
 ```
 city: id, name, country_code, district, population
@@ -473,6 +514,12 @@ ORDER BY population DESC LIMIT 5;
 
 ### Problem
 Calculate total revenue per product (revenue = units_sold × price).
+
+### Clarifying Questions to Ask
+- **Revenue formula:** Is revenue = price × quantity, or is there a discount column to account for? *(Confirm the formula — check for discount/tax columns.)*
+- **NULL price or quantity:** Should rows with NULL price or quantity be excluded or treated as 0? *(Usually excluded — NULL × anything = NULL, SUM skips it.)*
+- **Scope:** Revenue per product, per category, or total? *(Clarify grouping level.)*
+- **Date range:** Is this for all time, or a specific period? *(Always ask for a date filter.)*
 
 ### Schema
 ```
@@ -520,6 +567,12 @@ GROUP BY p.product_name;
 ### Problem
 Find products that are both low-fat AND recyclable.
 
+### Clarifying Questions to Ask
+- **"Eco-friendly" definition:** Is eco-friendly a boolean flag column, or derived from product name/category matching keywords? *(Check schema for an `is_eco` flag first.)*
+- **Case sensitivity:** If matching by keyword, should "Eco" and "eco" both match? *(Use ILIKE or LOWER for case-insensitive.)*
+- **Output:** Return the products themselves, a count, or a percentage of total? *(Ask — "filtering" usually means returning the rows.)*
+- **NULL category:** Should products with NULL category be excluded from consideration? *(Ask — depends on whether eco-friendly is determined by category.)*
+
 ### Schema
 ```
 Products: product_id, product_name, low_fats (Y/N), recyclable (Y/N)
@@ -554,6 +607,12 @@ GROUP BY category;
 
 ### Problem
 Find each customer's first order (earliest order date) and return customer details.
+
+### Clarifying Questions to Ask
+- **"First order" definition:** Is first order the one with the earliest `order_date`, or the lowest `order_id`? *(Clarify tiebreak — usually earliest date, then lowest ID.)*
+- **Customers with one order:** Should customers with only one order be included in the result? *(Yes — they have a first order.)*
+- **NULL order_date:** If `order_date` is NULL, how should ordering work? *(Ask — NULLs usually sort last; confirm behavior.)*
+- **Scope:** Is "first order" per customer globally, or per customer per category/product? *(Confirm partition level.)*
 
 ### Schema
 ```
@@ -603,6 +662,12 @@ A: MIN approach returns both; ROW_NUMBER approach returns one (add a tiebreaker 
 ### Problem
 Find the top 5 products by total revenue.
 
+### Clarifying Questions to Ask
+- **"Highest revenue" — how many:** Top 1, top N, or all products above a revenue threshold? *(Confirm N or the threshold.)*
+- **Ties:** If two products have equal revenue, should both be included? *(Yes for DENSE_RANK; ask which behavior is expected.)*
+- **Revenue definition:** Is this total_revenue = SUM(price × quantity), or just SUM(price)? *(Confirm formula.)*
+- **Time period:** Revenue for all time, or a specific date range? *(Always ask.)*
+
 ### SQL Solution
 ```sql
 SELECT p.product_name, SUM(s.units_sold * p.price) AS total_revenue
@@ -636,6 +701,12 @@ SELECT product_name, total_revenue FROM ranked WHERE rnk <= 5;
 ### Problem
 Analyze product order history — count orders and total units per product.
 
+### Clarifying Questions to Ask
+- **"Sales order" — ordering key:** Should products be ranked by total revenue, total units sold, or number of orders? *(Confirm the ranking metric.)*
+- **Partition:** Is the ranking global or per category? *(Clarify PARTITION BY.)*
+- **Ties:** If two products have equal sales, should they share a rank? *(Use RANK or DENSE_RANK vs ROW_NUMBER.)*
+- **Nulls in ranking column:** Should products with NULL revenue rank last? *(Confirm NULLS LAST in ORDER BY.)*
+
 ### SQL Solution
 ```sql
 SELECT p.product_name,
@@ -656,6 +727,12 @@ ORDER BY order_count DESC;
 
 ### Problem
 Find job titles ranked by average salary (top earners).
+
+### Clarifying Questions to Ask
+- **"Highest paying" — how many:** Single highest, top N, or all above a salary threshold? *(Confirm N.)*
+- **Ties:** If two titles have the same average salary, include both? *(Ask — affects RANK vs LIMIT.)*
+- **Aggregation:** Is "highest paying" the max salary for that title, or the average across employees with that title? *(Confirm — MAX vs AVG.)*
+- **NULL salaries:** Should titles with all-NULL salaries be included or excluded? *(Excluded by AVG/MAX automatically.)*
 
 ### Schema
 ```
@@ -688,6 +765,12 @@ Add `HAVING COUNT(*) >= 5`.
 
 ### Problem
 Identify users who made a second purchase within 7 days of any previous purchase (return customers).
+
+### Clarifying Questions to Ask
+- **"Returning" definition:** Is a returning user someone who made more than one purchase ever, or someone who purchased in both a reference period AND a comparison period? *(Clarify the time window.)*
+- **Time window:** Returning within 30 days? 90 days? Same month? *(Confirm the lookback window.)*
+- **First-time users:** Should the output separately identify first-time vs returning users, or only returning? *(Ask.)*
+- **Session vs purchase:** Is "returning" based on sessions/logins or actual purchases? *(Clarify the event type.)*
 
 ### Schema
 ```
@@ -734,6 +817,12 @@ A: Use LAG and compute `DATEDIFF(purchase_date, prev_date)`.
 ### Problem
 Count the number of shipments per year-month, sorted chronologically.
 
+### Clarifying Questions to Ask
+- **Granularity:** Count of shipments per calendar month, or fiscal month? *(Confirm month definition.)*
+- **Months with zero shipments:** Should months with no shipments appear with 0, or be omitted? *(Usually omit unless a date spine is required.)*
+- **Date column:** Should I use `ship_date`, `order_date`, or `delivery_date` for the month grouping? *(Confirm which date defines the shipment month.)*
+- **Status filter:** Should cancelled or returned shipments be excluded? *(Ask about status filtering.)*
+
 ### Schema
 ```
 shipments: shipment_id, ship_date, destination, weight
@@ -771,6 +860,12 @@ FROM monthly;
 
 ### Problem
 For each product, compute the cumulative percentage of total orders over time using window functions.
+
+### Clarifying Questions to Ask
+- **Cumulative percentage definition:** Is it the running total of orders / total orders × 100, ordered by what (date, customer, product)? *(Clarify the ORDER BY inside the window.)*
+- **Partition:** Is the cumulative total reset per category/region, or global? *(Confirm PARTITION BY.)*
+- **Rounding:** Should the percentage be rounded, and to how many decimal places? *(Confirm.)*
+- **100% at end:** Should the last row always equal exactly 100%? *(Yes — cumulative total = total.)*
 
 ### Schema
 ```
@@ -815,6 +910,12 @@ A: `PERCENT_RANK() = (rank - 1) / (total_rows - 1)` — it's rank-based, not val
 ### Problem
 Find users who made at least one purchase in EVERY month of 2023.
 
+### Clarifying Questions to Ask
+- **"Every month of 2023" — 12 months required?** Does a user need purchases in all 12 months, or just multiple months? *(Confirm — "every month" = all 12.)*
+- **Purchase definition:** At least one order per month, or a minimum spend threshold? *(Usually at least one order.)*
+- **Users registered after Jan 2023:** Should users who registered mid-year still need all 12 months? *(Ask — often yes, they still need coverage for each month they could have purchased.)*
+- **How to count:** HAVING COUNT(DISTINCT MONTH(order_date)) = 12? *(Yes — count distinct months.)*
+
 ### Schema
 ```
 purchases: purchase_id, user_id, purchase_date, amount
@@ -857,6 +958,12 @@ A: The `WHERE YEAR = 2023` filter prevents this — it restricts to 2023 only.
 
 ### Problem
 Identify missing IDs in a sequence. Report the start and end of each gap.
+
+### Clarifying Questions to Ask
+- **Gap definition:** A "gap" is a missing integer in a sequence — is the sequence expected to be consecutive with no jumps? *(Yes — find IDs that should exist but don't.)*
+- **Sequence range:** Should I check from min(id) to max(id), or from 1 to max(id)? *(Confirm — usually 1 to max.)*
+- **Output format:** Return the missing IDs themselves, or just the start/end of each gap range? *(Ask — returning ranges is more compact for large gaps.)*
+- **Multiple ID ranges:** If there are multiple gaps, return one row per missing ID or one row per gap range? *(Clarify.)*
 
 ### Schema
 ```
@@ -913,6 +1020,12 @@ UNION ALL
 
 ### Problem
 For each employee, traverse up the manager chain and return all ancestor managers (skip-level manager = manager's manager).
+
+### Clarifying Questions to Ask
+- **Depth limit:** How many levels of the management hierarchy should be traversed? *(Recursive CTEs handle unlimited depth — confirm if there's a max level.)*
+- **Circular references:** Is the data guaranteed to have no cycles (employee is their own manager, etc.)? *(Ask — if cycles possible, add a cycle detection LIMIT.)*
+- **Root node:** Who is the top-level manager (CEO)? Is their `manager_id` NULL or self-referential? *(Confirm the root condition.)*
+- **Output:** Return the full chain from CEO to employee, or just direct/indirect reports of one manager? *(Clarify the direction.)*
 
 ### Schema
 ```
@@ -972,6 +1085,12 @@ A: The `level` counter in the recursive CTE does this.
 ### Problem
 Flag products whose price is more than 3 standard deviations above the category mean (price gouging detection).
 
+### Clarifying Questions to Ask
+- **3-sigma rule:** Should I flag values > (mean + 3×stddev) OR < (mean − 3×stddev), or only the upper tail? *(Clarify — price gouging is typically upper tail only.)*
+- **Window:** Is the mean/stddev computed per product, per category, or globally? *(Confirm PARTITION BY.)*
+- **Output:** Return the flagged rows, or a summary count? *(Usually return the rows with a flag column.)*
+- **Minimum sample size:** If a product has only 1 or 2 price points, stddev is NULL — how should those be handled? *(Ask — usually exclude from flagging if sample too small.)*
+
 ### Schema
 ```
 products: product_id, product_name, category, price
@@ -1020,6 +1139,12 @@ WHERE p.price > pe.q3 + 1.5 * (pe.q3 - pe.q1);  -- IQR outlier
 ### Problem
 Find total revenue lost from orders where shipment was late (shipped after promised date), broken down by month.
 
+### Clarifying Questions to Ask
+- **"Late" definition:** A shipment is late if `ship_date > expected_date`? Or if delivery exceeds a fixed SLA (e.g., 5 days)? *(Confirm the lateness condition.)*
+- **Impact calculation:** Is revenue impact the revenue of late orders, or an estimated loss from refunds/penalties? *(Clarify the formula.)*
+- **Time period:** Are we measuring late shipments for a specific period or all time? *(Ask.)*
+- **Partial lateness:** If an order ships in multiple shipments and only one is late, is the whole order counted? *(Clarify.)*
+
 ### Schema
 ```
 orders: order_id, customer_id, order_date, promised_date, revenue
@@ -1055,6 +1180,12 @@ FROM orders o JOIN shipments s ON o.order_id = s.order_id;
 ### Problem
 Rank products within each category by total sales volume; return top 3 per category.
 
+### Clarifying Questions to Ask
+- **Hierarchy definition:** Is product hierarchy parent-child (category → subcategory → product), or just one level of category? *(Clarify schema depth.)*
+- **Ranking metric:** Ranked by revenue, units sold, or profit? *(Confirm the ordering column.)*
+- **Scope of ranking:** Rank within each category, or globally? *(Confirm PARTITION BY category.)*
+- **Ties:** Should tied products share a rank, or get unique sequential ranks? *(DENSE_RANK vs ROW_NUMBER.)*
+
 ### SQL Solution
 ```sql
 WITH ranked AS (
@@ -1088,6 +1219,11 @@ A:
 ### Problem
 Find each employee's skip-level manager (their manager's manager).
 
+### Clarifying Questions to Ask
+- **Skip-level manager:** Is the skip-level manager the manager's manager (2 levels up), or the nearest manager who is 2+ levels above? *(Usually 2 levels up: employee → manager → skip-level.)*
+- **Employees at the top:** If an employee's manager has no manager (CEO), should the skip-level column be NULL? *(Yes — NULL if no grandparent.)*
+- **Self-joins or CTE:** Is the hierarchy depth fixed at 3 levels, or variable? *(Clarify — fixed allows self-join; variable needs recursive CTE.)*
+
 ### Schema
 ```
 employees: emp_id, name, manager_id
@@ -1119,6 +1255,12 @@ Use a recursive CTE traversing downward.
 
 ### Problem
 Find product pairs that are frequently bought together (co-purchase analysis).
+
+### Clarifying Questions to Ask
+- **Cross-sell definition:** Products bought together means in the same order, or by the same customer across different orders? *(Clarify — same order is more standard for co-purchase pairs.)*
+- **Minimum co-occurrence:** Should pairs appear at least N times (e.g., 10) to be considered a cross-sell signal? *(Ask for a minimum frequency threshold.)*
+- **Ordered vs unordered pairs:** Is (A, B) the same as (B, A)? *(Usually yes — unordered pairs; use `WHERE p1.product_id < p2.product_id`.)*
+- **Output:** Top N pairs by frequency, or all pairs above the threshold? *(Confirm.)*
 
 ### Schema
 ```
@@ -1160,6 +1302,11 @@ WHERE a.product_id = 'TARGET_PRODUCT_ID'
 ### Problem
 Identify employees working on projects that are overdue (end_date < today but status ≠ complete).
 
+### Clarifying Questions to Ask
+- **"Overdue" definition:** A project is overdue if `current_date > deadline`? Or if it's still in progress past the deadline? *(Confirm the overdue condition.)*
+- **Employee association:** Are employees linked to projects by assignment, or by department? *(Check the schema — join table may exist.)*
+- **Multiple projects:** If an employee is on multiple projects and only one is overdue, do they appear once or multiple times? *(Ask — usually once per overdue project.)*
+
 ### Schema
 ```
 employees: emp_id, name
@@ -1188,6 +1335,12 @@ ORDER BY e.name;
 ### Problem
 Calculate average star ratings for products grouped by product and month.
 
+### Clarifying Questions to Ask
+- **Granularity:** Average rating per product per calendar month? *(Yes — GROUP BY product_id, YEAR(review_date), MONTH(review_date).)*
+- **NULL ratings:** Should reviews with NULL rating be excluded from the average? *(Yes — AVG ignores NULLs.)*
+- **Rounding:** How many decimal places for average rating? *(Confirm — usually 2 dp.)*
+- **Minimum reviews:** Should the average only be shown for products with at least N reviews? *(Ask for a minimum sample size threshold.)*
+
 ### Schema
 ```
 reviews: review_id, product_id, stars (1-5), review_date
@@ -1212,6 +1365,12 @@ ORDER BY product_id, review_month;
 
 ### Problem
 Identify customers who made at least one purchase on 3 or more distinct dates.
+
+### Clarifying Questions to Ask
+- **"Multiple distinct days":** Does "multiple" mean ≥ 2 distinct purchase dates, or a specific number like ≥ 3? *(Confirm the minimum.)*
+- **Time window:** Distinct days over all time, or within a rolling window (e.g., last 30 days)? *(Confirm.)*
+- **Multiple orders on same day:** If a customer placed 5 orders on the same day, does that count as 1 distinct day? *(Yes — COUNT(DISTINCT date).)*
+- **Output:** Return customer IDs only, or also include the count of distinct days? *(Ask.)*
 
 ### SQL Solution
 ```sql
@@ -1241,6 +1400,12 @@ HAVING COUNT(DISTINCT purchase_date) >= 3;
 ### Problem
 Find customers who have exactly one distinct product in their purchase history.
 
+### Clarifying Questions to Ask
+- **"Single item" definition:** Only one order ever, or only one distinct product ever? *(Clarify — one order vs one SKU.)*
+- **Time window:** Single item purchase across all time, or within a specific period? *(Confirm.)*
+- **Cancelled orders:** Should cancelled orders be excluded? *(Usually yes — only count completed purchases.)*
+- **Output:** Return the customer list only, or also their purchase details? *(Ask.)*
+
 ### SQL Solution
 ```sql
 SELECT customer_id
@@ -1259,6 +1424,12 @@ ORDER BY customer_id;
 
 ### Problem
 Compute total revenue, average order value, and order count per product category.
+
+### Clarifying Questions to Ask
+- **Metrics needed:** Which category metrics — total revenue, avg order value, item count, customer count, or all? *(Confirm the exact output columns.)*
+- **NULL category:** Should products with NULL category be grouped as "Uncategorized" or excluded? *(Ask.)*
+- **Time period filter:** All time, or a specific date range? *(Always ask.)*
+- **Sorting:** Should output be sorted by total revenue, category name, or something else? *(Confirm the ORDER BY.)*
 
 ### SQL Solution
 ```sql
@@ -1281,6 +1452,11 @@ ORDER BY total_revenue DESC;
 
 ### Problem
 Find number of active Prime members as of end of 2020 per marketplace.
+
+### Clarifying Questions to Ask
+- **Output columns:** Which columns should appear in the result — all order columns, or only key identifiers? *(Confirm.)*
+- **NULL handling:** Are there any columns where NULLs should be treated specially? *(Ask.)*
+- **Date filter:** Is there a date range for this query? *(Always confirm.)*
 
 ### Schema
 ```
@@ -1310,6 +1486,11 @@ A: Generate a date spine of months and join to memberships using BETWEEN.
 
 ### Problem
 A 500k sq-ft warehouse fills prime batches first (up to 500k), then non-prime with remaining space.
+
+### Clarifying Questions to Ask
+- **Metric definition:** What exactly needs to be calculated — confirm all output columns before starting. *(Don't assume the formula.)*
+- **Window frame:** Should the window function use unbounded preceding, or a fixed N-row frame? *(Clarify the frame.)*
+- **NULL values in partitioned column:** What happens if the partition key has NULL? *(NULLs form their own partition — confirm if that's intended.)*
 
 ### Schema
 ```
@@ -1348,6 +1529,12 @@ FROM prime_used;
 ### Problem
 Aggregate employee salary data per department: total, average, min, max.
 
+### Clarifying Questions to Ask
+- **Ranking metric:** What column drives the ranking — revenue, quantity, or something else? *(Confirm.)*
+- **Partition level:** Rank within category, region, or globally? *(Confirm PARTITION BY.)*
+- **Top N:** How many top results per group? *(Confirm N.)*
+- **Ties:** Include all tied items at position N, or strictly top N rows? *(DENSE_RANK ≤ N vs LIMIT N.)*
+
 ### SQL Solution
 ```sql
 SELECT department,
@@ -1370,6 +1557,11 @@ ORDER BY avg_salary DESC;
 
 ### Problem
 Find all neighborhoods that have no users in the users table.
+
+### Clarifying Questions to Ask
+- **Metric scope:** Are we aggregating at the order level, product level, or customer level? *(Confirm.)*
+- **Nulls in key columns:** How should NULL amounts or dates affect the result? *(Clarify NULL policy.)*
+- **Deduplication:** Could the same record appear multiple times — do I need to dedup first? *(Ask.)*
 
 ### Schema
 ```
@@ -1406,6 +1598,11 @@ A: Generally NOT EXISTS is better when the subquery is correlated and an index e
 ### Problem
 Find product groups that had no sales in the US region.
 
+### Clarifying Questions to Ask
+- **CTE vs subquery preference:** Does the interviewer prefer CTEs for readability, or is either acceptable? *(Good to ask — shows you know both.)*
+- **Data volume:** How large is the dataset? This affects whether window functions or self-joins are preferred. *(Asks you to think about performance.)*
+- **NULL handling in aggregations:** Should any specific columns' NULLs be treated as 0? *(Clarify.)*
+
 ### SQL Solution
 ```sql
 SELECT DISTINCT p.product_group
@@ -1441,6 +1638,11 @@ WHERE us_sales.product_group IS NULL;
 ### Problem
 Find users who made another purchase within 7 days of a previous purchase.
 
+### Clarifying Questions to Ask
+- **Output format:** Single row result, or per-group breakdown? *(Confirm.)*
+- **Filtering conditions:** Are there any rows to exclude before aggregating (e.g., cancelled, test records)? *(Always ask about data quality exclusions.)*
+- **Rounding:** Should numeric results be rounded, and to how many decimal places? *(Confirm.)*
+
 ### SQL Solution
 ```sql
 SELECT DISTINCT a.user_id
@@ -1462,6 +1664,11 @@ ORDER BY a.user_id;
 ### Problem
 Find products that have no reviews in the reviews table.
 
+### Clarifying Questions to Ask
+- **Comparison baseline:** Am I comparing each row against a global average, a group average, or a prior period? *(Clarify the reference point.)*
+- **Threshold:** Is there a specific deviation threshold to flag (e.g., > 2× average)? *(Confirm.)*
+- **Output:** Return flagged rows only, or all rows with a flag column? *(Ask.)*
+
 ### SQL Solution
 ```sql
 SELECT p.product_id, p.product_name
@@ -1480,6 +1687,12 @@ ORDER BY p.product_id;
 
 ### Problem
 Find users who made a purchase of the SAME product more than once.
+
+### Clarifying Questions to Ask
+- **"Repeat purchase" definition:** Same product bought more than once, or any second purchase from the same customer? *(Clarify.)*
+- **Self-join vs window function:** Either approach acceptable, or does the interviewer prefer one? *(Good to ask.)*
+- **Time constraint:** Repeat within 30 days, or ever? *(Confirm the lookback window.)*
+- **Output:** Return the customer list, the repeat orders, or both? *(Ask.)*
 
 ### SQL Solution
 ```sql
@@ -1500,6 +1713,12 @@ ORDER BY purchase_count DESC;
 ### Problem
 For each customer, find their highest cost order (max order value).
 
+### Clarifying Questions to Ask
+- **"Highest cost" — how many:** Single most expensive order, top N, or all above a threshold? *(Confirm N or threshold.)*
+- **Cost definition:** Is order cost = SUM(unit_price × quantity) for all line items, or a single `total_amount` column? *(Confirm formula.)*
+- **Ties:** If two orders have the same total cost, include both in "top N"? *(Ask — affects DENSE_RANK vs LIMIT.)*
+- **Per customer or global:** Top N orders globally, or top N per customer? *(Clarify PARTITION BY.)*
+
 ### SQL Solution
 ```sql
 SELECT c.customer_id, c.name,
@@ -1519,6 +1738,12 @@ ORDER BY highest_order DESC;
 
 ### Problem
 Recommend products by finding what else customers buy when they buy product X.
+
+### Clarifying Questions to Ask
+- **Recommendation basis:** Products bought together in the same order (co-purchase), or by the same customer in any order? *(Clarify the signal.)*
+- **Minimum co-occurrence:** How many times must two products be co-purchased to generate a recommendation? *(Ask for threshold.)*
+- **Self-recommendations:** Should a product be recommended alongside itself? *(No — filter p1.product_id ≠ p2.product_id.)*
+- **Output per product:** Top 1 recommendation, or top N? *(Confirm.)*
 
 ### SQL Solution
 ```sql
@@ -1543,6 +1768,11 @@ LIMIT 5;
 
 ### Problem
 Join employee and salary tables; return 0 for employees with no salary record.
+
+### Clarifying Questions to Ask
+- **JOIN type:** Should the query include rows where one side has no match (LEFT JOIN), or only matched rows (INNER JOIN)? *(This is the core of NULL handling in joins — clarify.)*
+- **NULL in join key:** If `customer_id` is NULL in the orders table, should those orders be included? *(Usually excluded — NULL ≠ NULL in JOIN conditions.)*
+- **Coalescing NULLs:** Should NULL values in non-key columns be replaced with defaults (e.g., 0, "Unknown")? *(Ask — clarifies output expectations.)*
 
 ### SQL Solution
 ```sql
@@ -1570,6 +1800,11 @@ A: IFNULL takes exactly 2 args; COALESCE takes unlimited args. Both are equivale
 ### Problem
 Return customers who have placed at least one order (semi-join pattern).
 
+### Clarifying Questions to Ask
+- **Existence check goal:** Am I finding customers who HAVE placed orders (semi-join), or those who HAVE NOT (anti-join)? *(Clarify — EXISTS vs NOT EXISTS.)*
+- **Efficiency preference:** Does the interviewer prefer EXISTS, IN, or JOIN for this? *(Good to show you know the trade-offs.)*
+- **Correlated vs uncorrelated:** Is the subquery checking against a column from the outer query? *(That determines whether it's a correlated subquery.)*
+
 ### SQL Solution
 ```sql
 -- EXISTS (semi-join)
@@ -1596,6 +1831,12 @@ A: EXISTS short-circuits at first match (faster for large subquery results); IN 
 
 ### Problem
 Find all numbers that appear consecutively at least 3 times in the `Logs` table.
+
+### Clarifying Questions to Ask
+- **"Consecutive" definition:** Is it consecutive by row number in the table, or consecutive by a time-ordered sequence? *(Clarify ORDER BY inside the window.)*
+- **Minimum run length:** At least 3 consecutive occurrences of the same number — is 3 the minimum, or should I find all runs of exactly 3+? *(Confirm.)*
+- **Output:** Return the numbers that appear consecutively, or the row IDs forming the run? *(Ask.)*
+- **Null values:** Should NULL values break a consecutive sequence? *(Usually yes.)*
 
 ### Schema
 ```
@@ -1634,6 +1875,12 @@ HAVING COUNT(*) >= 3;
 ### Problem
 Compute the cumulative total sales amount by date.
 
+### Clarifying Questions to Ask
+- **Running total scope:** Cumulative total over all rows ordered by date, or reset per customer/category? *(Confirm PARTITION BY.)*
+- **Date ordering:** Is the running total ordered by transaction date, or by transaction ID? *(Clarify ORDER BY.)*
+- **NULL amounts:** Should NULLs be treated as 0 in the running total? *(Ask — SUM ignores NULLs, which can create unexpected running totals.)*
+- **Output:** Include a column showing both the row amount and the running total? *(Confirm output columns.)*
+
 ### SQL Solution
 ```sql
 SELECT sale_date, daily_total,
@@ -1654,6 +1901,12 @@ ORDER BY sale_date;
 
 ### Problem
 Find the top 3 products by revenue in each category.
+
+### Clarifying Questions to Ask
+- **N value:** What is N — top 3, top 5? *(Confirm.)*
+- **Ties at position N:** If the Nth and (N+1)th products have the same revenue, include both? *(DENSE_RANK ≤ N vs LIMIT N.)*
+- **Category definition:** One level of category, or the lowest level of a hierarchy? *(Clarify.)*
+- **Metric for ranking:** Revenue (price × qty), units sold, or profit? *(Confirm ranking column.)*
 
 ### SQL Solution
 ```sql
@@ -1678,6 +1931,12 @@ ORDER BY category, rnk;
 
 ### Problem
 Find the Nth highest salary from the `Employee` table.
+
+### Clarifying Questions to Ask
+- **N value:** What is N — 2nd highest, 3rd highest? *(Confirm.)*
+- **Salary scope:** Nth highest globally, or per department? *(Clarify PARTITION BY.)*
+- **Ties:** If two employees have the same salary, do they occupy the same rank? *(DENSE_RANK counts unique salary values; ROW_NUMBER always unique.)*
+- **NULL salaries:** Should employees with NULL salary be excluded from ranking? *(Yes — DENSE_RANK ignores NULLs in ORDER BY by default: NULLS LAST.)*
 
 ### SQL Solution
 ```sql
@@ -1710,6 +1969,11 @@ A: Both approaches return NULL/empty. Wrap in `SELECT IFNULL((subquery), NULL)`.
 ### Problem
 Return every other row (odd-position rows) from a result set.
 
+### Clarifying Questions to Ask
+- **"Alternate" definition:** Every other row by insertion order, or by a specific sorted order? *(Clarify the ORDER BY for ROW_NUMBER.)*
+- **Odd or even rows:** Return rows 1, 3, 5, ... (odd) or 2, 4, 6, ... (even)? *(Confirm which alternate set.)*
+- **Determinism:** If there's no stable row ordering in the table, which rows qualify? *(Ask for a tiebreak column.)*
+
 ### SQL Solution
 ```sql
 SELECT * FROM (
@@ -1728,6 +1992,12 @@ WHERE rn % 2 = 1;  -- 1 for odd rows, 0 for even
 
 ### Problem
 Find percentage of calls that are international (caller and receiver in different countries).
+
+### Clarifying Questions to Ask
+- **"International" definition:** Calls where caller and receiver are in different countries? *(Confirm how country is determined — prefix, user profile column?)*
+- **Percentage formula:** International calls / total calls × 100, or international call duration / total duration × 100? *(Confirm — count-based vs duration-based.)*
+- **Rounding:** How many decimal places? *(Confirm.)*
+- **NULL country:** If a caller's country is NULL, is the call counted as domestic or excluded? *(Ask.)*
 
 ### Schema
 ```
@@ -1755,6 +2025,12 @@ JOIN users r ON pc.receiver_id = r.user_id;
 
 ### Problem
 Find the top 2 highest-grossing items per category in 2022.
+
+### Clarifying Questions to Ask
+- **"Highest grossing" — how many per category:** Top 1, top N? *(Confirm N.)*
+- **Gross revenue formula:** price × quantity, or a `revenue` column? *(Confirm.)*
+- **Ties:** If two items have equal revenue within a category, include both? *(DENSE_RANK vs LIMIT.)*
+- **Categories with few items:** If a category has fewer than N items, return all items in that category? *(Yes — DENSE_RANK naturally handles this.)*
 
 ### Schema
 ```
@@ -1797,6 +2073,18 @@ ORDER BY category, rnk;
 ### Problem
 Compute the 3-month rolling average of monthly revenue.
 
+### Clarifying Questions to Ask
+- **Top 2 by what metric:** Revenue, units sold, or number of orders? *(Confirm ranking column.)*
+- **Ties at position 2:** If the 2nd and 3rd products have equal metric values, include both? *(Ask — DENSE_RANK ≤ 2 vs LIMIT 2.)*
+- **Per category or global:** Top 2 within each category? *(Yes — PARTITION BY category.)*
+- **Output:** Return product name + metric, or full product details? *(Confirm output columns.)*
+
+### Clarifying Questions to Ask
+- **Window size:** Rolling average over exactly 3 months (preceding 2 + current), or trailing 3 including current? *(Confirm ROWS BETWEEN 2 PRECEDING AND CURRENT ROW.)*
+- **Month with fewer than 3 prior months:** Should the average use whatever data is available (ROWS BETWEEN) or return NULL until 3 months accumulate? *(Clarify — ROWS frame calculates with available rows; use a conditional if NULL is needed.)*
+- **Granularity:** Rolling average of monthly revenue, or of individual transactions? *(Confirm — aggregate to monthly first, then roll.)*
+- **Rounding:** How many decimal places? *(Confirm.)*
+
 ### SQL Solution
 ```sql
 WITH monthly AS (
@@ -1828,6 +2116,12 @@ A: ROWS counts physical rows; RANGE uses the actual value range. For monthly dat
 ### Problem
 Find products whose monthly sales increased for 3 consecutive months.
 
+### Clarifying Questions to Ask
+- **"Increasing" definition:** Strictly greater than each prior month, or greater than or equal? *(Usually strictly greater.)*
+- **3 consecutive months:** Exactly 3 months in a row, or at least 3 months in a row? *("At least 3" is harder — clarify.)*
+- **Gap months:** If a product had no sales in February, does the March → April → May sequence count? *(Usually no — gaps break the sequence.)*
+- **Output:** Return products that ever had 3 consecutive increases, or the specific months forming the run? *(Ask.)*
+
 ### SQL Solution
 ```sql
 WITH monthly AS (
@@ -1857,6 +2151,12 @@ WHERE monthly_sales > prev1 AND prev1 > prev2;
 ### Problem
 Flag days where revenue is more than 200% above the 7-day moving average.
 
+### Clarifying Questions to Ask
+- **Anomaly threshold:** Is the ±200% threshold relative to the moving average (i.e., value > 3× avg OR value < avg/3)? *(Confirm the exact formula.)*
+- **Window size:** Moving average over how many prior periods? *(Confirm the window frame.)*
+- **Both directions:** Flag revenue both above +200% AND below −200%, or only one direction? *(Ask — "anomaly" usually means both tails.)*
+- **Minimum window:** For the first few periods where a full window isn't available, should anomaly detection be skipped? *(Ask — usually skip if fewer than N data points are available.)*
+
 ### SQL Solution
 ```sql
 WITH daily AS (
@@ -1883,6 +2183,12 @@ ORDER BY sale_date;
 
 ### Problem
 Calculate total uptime for each server from start/stop event logs.
+
+### Clarifying Questions to Ask
+- **"Utilization time" definition:** Total elapsed time a server is in use, or time as a percentage of total available time? *(Clarify the metric.)*
+- **Overlapping sessions:** If two sessions overlap on the same server, should overlapping time be counted once or twice? *(Clarify — usually once, requiring interval merging.)*
+- **Time format:** Are start/end times stored as timestamps or as integers (e.g., Unix epoch)? *(Confirm data type.)*
+- **Output:** Per-server utilization, or aggregated across all servers? *(Confirm grouping level.)*
 
 ### Schema
 ```
@@ -1915,6 +2221,12 @@ GROUP BY server_id;
 ### Problem
 Find the top 3 months with the highest revenue growth rate compared to the prior month.
 
+### Clarifying Questions to Ask
+- **Top 3 by growth:** Growth measured as absolute dollar increase or percentage growth? *(Confirm formula.)*
+- **Month scope:** Top 3 overall or top 3 per some partition? *(Clarify.)*
+- **Negative growth:** Should months with declining revenue be excluded from "growth" ranking? *(Ask — or include as the lowest-ranked.)*
+- **Ties:** Handle tied growth rates with DENSE_RANK? *(Confirm.)*
+
 ### SQL Solution
 ```sql
 WITH monthly AS (
@@ -1945,6 +2257,12 @@ LIMIT 3;
 
 ### Problem
 Flag products that need reordering (current stock < reorder_point = avg_daily_sales × lead_time_days).
+
+### Clarifying Questions to Ask
+- **Reorder point formula:** Is reorder_point = avg_daily_demand × lead_time_days + safety_stock? *(Confirm the formula before coding.)*
+- **Lead time:** Is lead_time a column in the table, or a fixed business parameter (e.g., 7 days)? *(Clarify.)*
+- **NULL stock:** If current_stock is NULL, should the item always trigger a reorder alert? *(Ask.)*
+- **Output:** Return all products with reorder point calculated, or only those currently below their reorder point? *(Confirm.)*
 
 ### Schema
 ```
@@ -1977,6 +2295,12 @@ ORDER BY i.product_id;
 
 ### Problem
 Maximize items stored in a warehouse by prioritizing item types. Fill prime-eligible items first (up to capacity), then fill remaining space with non-prime.
+
+### Clarifying Questions to Ask
+- **Optimization goal:** Minimize total storage cost, maximize space utilization, or ensure no stockout? *(Clarify the objective.)*
+- **Constraints:** Are there maximum capacity constraints per warehouse? *(Ask.)*
+- **Product assignment:** Can one product be split across multiple warehouses, or must it be in exactly one? *(Clarify.)*
+- **Output:** Recommended assignments, current inefficiencies, or a sorted priority list? *(Confirm.)*
 
 ### SQL Solution
 ```sql
@@ -2011,6 +2335,12 @@ FROM allocation;
 
 ### Problem
 Query a star schema to compute total revenue by region and product category for Q4 2022.
+
+### Clarifying Questions to Ask
+- **Star schema tables:** Which tables form the fact and which are dimensions? *(Identify fact_sales, dim_product, dim_customer, dim_date before writing joins.)*
+- **Slowly changing dimensions:** Are dimension tables Type 1 (overwrite) or Type 2 (history rows)? *(Ask — affects how you join if historical data is needed.)*
+- **Grain of fact table:** Is each row one order, one order line item, or one daily summary? *(Confirm grain before aggregating.)*
+- **NULL foreign keys:** Should fact rows with NULL dimension keys be excluded or grouped as "Unknown"? *(Ask.)*
 
 ### Schema
 ```
@@ -2051,6 +2381,12 @@ A: Like Star but dimensions are normalized (e.g., product → category → depar
 
 ### Problem
 Replace NULL values in sensor readings with the most recent non-NULL value (LOCF — Last Observation Carried Forward).
+
+### Clarifying Questions to Ask
+- **Forward fill scope:** Is fill independent per sensor, or can sensor 1's last value fill sensor 2's NULLs? *(Always per sensor — independent partitions.)*
+- **Leading NULLs:** If a sensor's first rows are all NULL, should they stay NULL or be filled with a default (e.g., 0)? *(Stay NULL unless a default is specified.)*
+- **Multiple NULLs in a row:** Should a sequence of 3 consecutive NULLs all get the same prior non-null value? *(Yes — LOCF propagates until the next non-null.)*
+- **Ordering column:** Is the fill ordered by `reading_date`, or by a row number / timestamp? *(Confirm the ORDER BY.)*
 
 ### Schema
 ```
@@ -2094,6 +2430,12 @@ A: LOCF forward-fills; use `FIRST_VALUE ... FOLLOWING` for backward fill (NOCB �
 
 ### Problem
 Find the maximum number of concurrent active sessions at any point in time.
+
+### Clarifying Questions to Ask
+- **"Concurrent" definition:** Users who are simultaneously active at any point in time? *(Yes — overlapping session intervals.)*
+- **Peak definition:** The single maximum concurrent user count, or the maximum per time bucket (hour/minute)? *(Clarify.)*
+- **Session data:** Do we have start_time and end_time per session, or just events (login/logout)? *(Confirm schema — affects approach significantly.)*
+- **Tied peaks:** If peak count is the same across multiple time windows, return all of them? *(Confirm.)*
 
 ### Schema
 ```
@@ -2214,6 +2556,12 @@ Always ask: "What if multiple rows have the same value?" → Use `DENSE_RANK` ov
 
 ### Problem
 An order system stores headers in `orders` and line items in `order_items`. Produce one flattened row per order with distinct item count, total quantity, total line amount, and a comma-separated product list sorted by item_id ascending. Orders with zero line items still appear with NULLs for quantity/amount/product_list.
+
+### Clarifying Questions to Ask
+- **Granularity:** One row per order (aggregating all line items), or one row per order line item? *(Confirm — "flatten nested" usually means one row per order with aggregated line item metrics.)*
+- **Orders with no line items:** Should orders with no line items appear with NULL/zero values? *(LEFT JOIN preserves them — confirm.)*
+- **Product list format:** Comma-separated string of product names? Any length limit? *(Confirm the concatenation format and whether order matters.)*
+- **Rounding:** Should `total_amount` be rounded, and to how many decimal places? *(Confirm.)*
 
 ### Schema
 ```
