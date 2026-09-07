@@ -29,6 +29,21 @@ GROUP BY student_id;
 > SELECT student_id, 'Science' AS subject, science_score AS score FROM Wide;
 > ```
 
+
+**Example:**
+
+Input `Scores`:
+| student_id | subject | score |
+|---|---|---|
+| 1 | Math | 90 |
+| 1 | Science | 85 |
+| 1 | English | 78 |
+
+Output:
+| student_id | Math | Science | English |
+|---|---|---|---|
+| 1 | 90 | 85 | 78 |
+
 ---
 
 ### Pattern 2 — Gaps and Islands
@@ -71,6 +86,24 @@ WHERE n NOT IN (SELECT id FROM T);
 
 > **Key insight:** If values are consecutive, `value - ROW_NUMBER()` is the same for every row in that island. Any change in that difference signals a new island (i.e., a gap occurred).
 
+
+**Example:**
+
+Input `Logins`:
+| user_id | login_date |
+|---|---|
+| 1 | 2024-01-01 |
+| 1 | 2024-01-02 |
+| 1 | 2024-01-03 |
+| 1 | 2024-01-05 |
+| 1 | 2024-01-06 |
+
+Output:
+| user_id | streak_start | streak_end | streak_length |
+|---|---|---|---|
+| 1 | 2024-01-01 | 2024-01-03 | 3 |
+| 1 | 2024-01-05 | 2024-01-06 | 2 |
+
 ---
 
 ### Pattern 3 — Recursive CTE (Hierarchical / Sequence Generation)
@@ -104,6 +137,25 @@ SELECT dt FROM dates;
 
 > **Watch out for:** Infinite loops — always have a termination condition in the WHERE clause. MySQL defaults to 1000 recursion depth (`SET SESSION cte_max_recursion_depth = n` to raise it).
 
+
+**Example:**
+
+Input `Employees`:
+| employee_id | name | manager_id |
+|---|---|---|
+| 1 | Alice | NULL |
+| 2 | Bob | 1 |
+| 3 | Carol | 1 |
+| 4 | Dan | 2 |
+
+Output (`org`, root = 1):
+| employee_id | name | manager_id | depth |
+|---|---|---|---|
+| 1 | Alice | NULL | 0 |
+| 2 | Bob | 1 | 1 |
+| 3 | Carol | 1 | 1 |
+| 4 | Dan | 2 | 2 |
+
 ---
 
 ### Pattern 4 — EXISTS / NOT EXISTS (Semi-join / Anti-semi-join)
@@ -128,6 +180,19 @@ WHERE NOT EXISTS (
 
 > `SELECT 1` inside EXISTS is convention — the optimizer ignores what you select; it only checks if any row is returned.
 
+
+**Example:**
+
+Input `Customers` / `Orders`:
+| customer_id | name |   | customer_id (Orders) |
+|---|---|---|---|
+| 1 | Joe |  | 1 |
+| 2 | Amy |  | 3 |
+| 3 | Sam |  |  |
+
+Output — semi-join (placed an order): `1, 3`
+Output — anti-join (no orders, NULL-safe): `2`
+
 ---
 
 ### Pattern 5 — FIRST_VALUE / LAST_VALUE / NTH_VALUE
@@ -144,6 +209,23 @@ FROM Sales;
 ```
 
 > **Gotcha for LAST_VALUE:** The default frame is `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`, so LAST_VALUE only sees up to the current row — not what you want. Always specify `ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING` explicitly.
+
+
+**Example:**
+
+Input `Sales` (product 1):
+| product_id | sale_date | amount |
+|---|---|---|
+| 1 | 2024-01-01 | 100 |
+| 1 | 2024-01-05 | 150 |
+| 1 | 2024-01-10 | 120 |
+
+Output:
+| product_id | sale_date | amount | first_sale | last_sale |
+|---|---|---|---|---|
+| 1 | 2024-01-01 | 100 | 100 | 120 |
+| 1 | 2024-01-05 | 150 | 100 | 120 |
+| 1 | 2024-01-10 | 120 | 100 | 120 |
 
 ---
 
@@ -162,6 +244,25 @@ FROM CustomerSpend;
 > `NTILE(n)` splits rows into n equal buckets. If rows don't divide evenly, earlier buckets get one extra row.  
 > `PERCENT_RANK()` = (rank - 1) / (total_rows - 1), ranges 0 to 1.  
 > `CUME_DIST()` = rows ≤ current value / total rows, ranges 1/n to 1.
+
+
+**Example:**
+
+Input `CustomerSpend`:
+| customer_id | total_spend |
+|---|---|
+| 1 | 400 |
+| 2 | 300 |
+| 3 | 200 |
+| 4 | 100 |
+
+Output:
+| customer_id | total_spend | quartile | pct_rank | cume_pct |
+|---|---|---|---|---|
+| 1 | 400 | 1 | 100.0 | 25.0 |
+| 2 | 300 | 2 | 66.7 | 50.0 |
+| 3 | 200 | 3 | 33.3 | 75.0 |
+| 4 | 100 | 4 | 0.0 | 100.0 |
 
 ---
 
@@ -194,6 +295,28 @@ WHERE result = 'W'
 GROUP BY player_id, result, island_key;
 ```
 
+
+**Example (monthly running total):**
+
+Input `Sales`:
+| sale_date | amount |
+|---|---|
+| 2024-01-05 | 50 |
+| 2024-01-20 | 30 |
+| 2024-02-02 | 40 |
+
+Output:
+| sale_date | amount | monthly_running_total |
+|---|---|---|
+| 2024-01-05 | 50 | 50 |
+| 2024-01-20 | 30 | 80 |
+| 2024-02-02 | 40 | 40 |
+
+**Example (streak counter):**
+
+Input `Games` (player 1): W, W, L, W → results on 4 consecutive dates.
+Output: two streaks for player 1 — `W` length 2 (days 1-2), `W` length 1 (day 4).
+
 ---
 
 ### Pattern 8 — Simple WHERE Filter
@@ -206,6 +329,18 @@ GROUP BY player_id, result, island_key;
 SELECT product_id FROM Products WHERE low_fats = 'Y' AND recyclable = 'Y';
 ```
 
+
+**Example:**
+
+Input `Products`:
+| product_id | low_fats | recyclable |
+|---|---|---|
+| 1 | Y | N |
+| 2 | Y | Y |
+| 3 | N | Y |
+
+Output: `product_id = 2`
+
 ---
 
 ### Pattern 9 — NULL Handling
@@ -216,6 +351,18 @@ SELECT product_id FROM Products WHERE low_fats = 'Y' AND recyclable = 'Y';
 -- Include rows where referee_id is not 2 OR has no referee at all
 SELECT name FROM Customer WHERE referee_id != 2 OR referee_id IS NULL;
 ```
+
+
+**Example:**
+
+Input `Customer`:
+| id | name | referee_id |
+|---|---|---|
+| 1 | Will | NULL |
+| 2 | Jane | 1 |
+| 3 | Alex | 2 |
+
+Output (`referee_id != 2 OR referee_id IS NULL`): `Will, Jane`
 
 ---
 
@@ -228,6 +375,19 @@ SELECT name FROM Customer WHERE referee_id != 2 OR referee_id IS NULL;
 SELECT product_name, year, price
 FROM Sales s JOIN Product p ON s.product_id = p.product_id;
 ```
+
+
+**Example:**
+
+Input `Sales` / `Product`:
+| product_id | year | price |   | product_id | product_name |
+|---|---|---|---|---|---|
+| 100 | 2019 | 5000 |  | 100 | Nokia |
+
+Output:
+| product_name | year | price |
+|---|---|---|
+| Nokia | 2019 | 5000 |
 
 ---
 
@@ -242,6 +402,20 @@ FROM Visits v LEFT JOIN Transactions t ON v.visit_id = t.visit_id
 WHERE t.transaction_id IS NULL
 GROUP BY customer_id;
 ```
+
+
+**Example:**
+
+Input `Visits` / `Transactions`:
+| visit_id | customer_id |   | visit_id (Transactions) |
+|---|---|---|---|
+| 10 | 1 |  |  |
+| 11 | 2 |  | 11 |
+
+Output:
+| customer_id | count_no_trans |
+|---|---|
+| 1 | 1 |
 
 ---
 
@@ -258,6 +432,19 @@ LEFT JOIN Examinations e ON s.student_id = e.student_id AND e.subject_name = sub
 GROUP BY s.student_id, s.student_name, sub.subject_name;
 ```
 
+
+**Example:**
+
+Input: 2 students (S1, S2) × 2 subjects (Math, Physics); `Examinations` has one row: S1/Math.
+
+Output:
+| student_id | student_name | subject_name | attended_exams |
+|---|---|---|---|
+| S1 | ... | Math | 1 |
+| S1 | ... | Physics | 0 |
+| S2 | ... | Math | 0 |
+| S2 | ... | Physics | 0 |
+
 ---
 
 ### Pattern 13 — Self-JOIN
@@ -271,6 +458,18 @@ FROM Employee e JOIN Employee m ON e.id = m.managerId
 GROUP BY m.managerId HAVING COUNT(*) >= 5;
 ```
 
+
+**Example** *(threshold lowered to ≥2 here for a compact illustration):*
+
+Input `Employee`:
+| id | name | managerId |
+|---|---|---|
+| 101 | John | NULL |
+| 102 | Dan | 101 |
+| 103 | James | 101 |
+
+Output: `John` (2 direct reports)
+
 ---
 
 ### Pattern 14 — GROUP BY + HAVING
@@ -281,6 +480,18 @@ GROUP BY m.managerId HAVING COUNT(*) >= 5;
 -- Classes with at least 5 students
 SELECT class FROM Courses GROUP BY class HAVING COUNT(student) >= 5;
 ```
+
+
+**Example** *(threshold lowered to ≥2 for illustration):*
+
+Input `Courses`:
+| student | class |
+|---|---|
+| A | Math |
+| B | Math |
+| C | English |
+
+Output: `class = Math`
 
 ---
 
@@ -296,6 +507,20 @@ SELECT DATE_FORMAT(trans_date, '%Y-%m') month, country,
 FROM Transactions GROUP BY DATE_FORMAT(trans_date, '%Y-%m'), country;
 ```
 
+
+**Example:**
+
+Input `Transactions`:
+| trans_date | country | state |
+|---|---|---|
+| 2018-12-18 | US | approved |
+| 2018-12-19 | US | declined |
+
+Output:
+| month | country | trans_count | approved_count |
+|---|---|---|---|
+| 2018-12 | US | 2 | 1 |
+
 ---
 
 ### Pattern 16 — Subqueries (Scalar / IN / NOT IN)
@@ -309,6 +534,18 @@ SELECT customer_id FROM Customer
 GROUP BY customer_id
 HAVING COUNT(DISTINCT product_key) = (SELECT COUNT(*) FROM Product);
 ```
+
+
+**Example:**
+
+Input `Customer` (customer_id, product_key) / `Product` (2 total products: 5, 6):
+| customer_id | product_key |
+|---|---|
+| 1 | 5 |
+| 1 | 6 |
+| 2 | 5 |
+
+Output: `customer_id = 1` (bought both products)
 
 ---
 
@@ -325,6 +562,18 @@ FROM first_login f
 JOIN Activity a ON f.player_id = a.player_id
   AND a.event_date = DATE_ADD(f.login_date, INTERVAL 1 DAY);
 ```
+
+
+**Example:**
+
+Input `Activity`:
+| player_id | event_date |
+|---|---|
+| 1 | 2016-03-01 |
+| 1 | 2016-03-02 |
+| 2 | 2017-06-25 |
+
+Output: `fraction = 0.50` (1 of 2 players returned the next day)
 
 ---
 
@@ -345,6 +594,18 @@ SELECT d.name Department, r.name Employee, r.salary Salary
 FROM Department d JOIN ranked r ON r.departmentId = d.id WHERE r.rnk <= 3;
 ```
 
+
+**Example:**
+
+Input `Employee`:
+| name | salary | departmentId |
+|---|---|---|
+| Joe | 85000 | 1 |
+| Henry | 80000 | 2 |
+| Sam | 60000 | 2 |
+
+Output (top 3 per dept, DENSE_RANK): all three rows qualify (each dept has ≤3 employees).
+
 ---
 
 ### Pattern 19 — Window Functions: LAG / LEAD
@@ -362,6 +623,18 @@ SELECT id FROM (
 ) t WHERE temperature > prev_temp AND DATEDIFF(recordDate, prev_date) = 1;
 ```
 
+
+**Example:**
+
+Input `Weather`:
+| id | recordDate | temperature |
+|---|---|---|
+| 1 | 2015-01-01 | 10 |
+| 2 | 2015-01-02 | 25 |
+| 3 | 2015-01-03 | 20 |
+
+Output: `id = 2` (25 > 10, consecutive day)
+
 ---
 
 ### Pattern 20 — Window Functions: SUM/AVG OVER (Rolling Aggregation)
@@ -376,6 +649,21 @@ SELECT visited_on,
 FROM daily_table;
 ```
 
+
+**Example:**
+
+Input `daily_table`:
+| visited_on | amount |
+|---|---|
+| 2019-01-01 | 100 |
+| 2019-01-02 | 110 |
+
+Output:
+| visited_on | amount (rolling) | avg_amount |
+|---|---|---|
+| 2019-01-01 | 100 | 100.00 |
+| 2019-01-02 | 210 | 105.00 |
+
 ---
 
 ### Pattern 21 — UNION / UNION ALL
@@ -389,6 +677,17 @@ SELECT requester_id AS id FROM RequestAccepted
 UNION ALL
 SELECT accepter_id AS id FROM RequestAccepted;
 ```
+
+
+**Example:**
+
+Input `RequestAccepted`:
+| requester_id | accepter_id |
+|---|---|
+| 1 | 2 |
+| 3 | 4 |
+
+Output (all ids, both directions): `1, 3, 2, 4`
 
 ---
 
@@ -409,6 +708,20 @@ WHERE activity_date BETWEEN DATE_SUB('2019-07-27', INTERVAL 29 DAY) AND '2019-07
 GROUP BY activity_date;
 ```
 
+
+**Example:**
+
+Input `Activity`:
+| user_id | activity_date |
+|---|---|
+| 1 | 2019-07-20 |
+| 2 | 2019-07-20 |
+
+Output:
+| day | active_users |
+|---|---|
+| 2019-07-20 | 2 |
+
 ---
 
 ### Pattern 23 — String Functions
@@ -427,6 +740,13 @@ GROUP BY activity_date;
 SELECT CONCAT(UPPER(LEFT(name, 1)), LOWER(SUBSTRING(name, 2))) AS name FROM Users;
 ```
 
+
+**Example:**
+
+Input `Users`: `name = 'FIRSTNAME lastname'`
+
+Output: `name = 'Firstname lastname'`
+
 ---
 
 ### Pattern 24 — Tuple / Multi-Column IN (MySQL-specific)
@@ -437,6 +757,18 @@ SELECT CONCAT(UPPER(LEFT(name, 1)), LOWER(SUBSTRING(name, 2))) AS name FROM User
 -- Policies with a unique (lat, lon) pair
 WHERE (lat, lon) IN (SELECT lat, lon FROM Insurance GROUP BY lat, lon HAVING COUNT(*) = 1)
 ```
+
+
+**Example:**
+
+Input `Insurance`:
+| pid | lat | lon |
+|---|---|---|
+| 1 | 5 | 10 |
+| 2 | 5 | 10 |
+| 3 | 6 | 20 |
+
+Output: `pid = 3` (only lat/lon pair that appears once)
 
 ---
 
@@ -450,6 +782,18 @@ DELETE FROM Person
 WHERE id NOT IN (SELECT * FROM (SELECT MIN(id) FROM Person GROUP BY email) tmp);
 ```
 
+
+**Example:**
+
+Input `Person`:
+| id | email |
+|---|---|
+| 1 | a@b.com |
+| 2 | a@b.com |
+| 3 | c@d.com |
+
+Output (after DELETE): rows `id = 1, 3` remain (id 2 removed as the higher duplicate id).
+
 ---
 
 ### Pattern 26 — COALESCE / IFNULL for Default Values
@@ -462,6 +806,21 @@ WHERE id NOT IN (SELECT * FROM (SELECT MIN(id) FROM Person GROUP BY email) tmp);
 SELECT ap.product_id, COALESCE(r.new_price, 10) AS price
 FROM all_products ap LEFT JOIN ranked r ON ap.product_id = r.product_id AND r.rnk = 1;
 ```
+
+
+**Example:**
+
+Input `all_products` / `ranked` (rnk = 1 rows only):
+| product_id |   | product_id | new_price | rnk |
+|---|---|---|---|---|
+| 1 |  | 1 | 20 | 1 |
+| 2 |  |  |  |  |
+
+Output:
+| product_id | price |
+|---|---|
+| 1 | 20 |
+| 2 | 10 |
 
 ---
 
@@ -477,6 +836,23 @@ SELECT
        ELSE id - 1 END AS id, student
 FROM Seat ORDER BY id;
 ```
+
+
+**Example:**
+
+Input `Seat`:
+| id | student |
+|---|---|
+| 1 | Abbot |
+| 2 | Doris |
+| 3 | Emerson |
+
+Output:
+| id | student |
+|---|---|
+| 1 | Doris |
+| 2 | Abbot |
+| 3 | Emerson |
 
 ---
 
@@ -505,6 +881,17 @@ WHERE id NOT IN (
   ) t WHERE rn = 1
 );
 ```
+
+
+**Example:**
+
+Input `Customers`:
+| id | customer_id | updated_at |
+|---|---|---|
+| 1 | 100 | 2024-01-01 |
+| 2 | 100 | 2024-02-01 |
+
+Output (deduped, `rn = 1`): row `id = 2` (most recent per customer_id).
 
 ---
 
@@ -539,6 +926,17 @@ GROUP BY user_id, session_id;
 
 > **Key insight:** Mark rows where the gap > threshold as a new session start (1), then a running SUM creates an incrementing session counter — each new session bumps the counter by 1.
 
+
+**Example** *(30-min gap threshold):*
+
+Input `Events` (user 1): 09:00, 09:15, 10:00, 10:05
+
+Output:
+| user_id | session_id | session_start | session_end | event_count |
+|---|---|---|---|---|
+| 1 | 1 | 09:00 | 09:15 | 2 |
+| 1 | 2 | 10:00 | 10:05 | 2 |
+
 ---
 
 ### Pattern 30 — Temporal Join (Join on Date Ranges)
@@ -566,6 +964,17 @@ SELECT * FROM ranked WHERE rn = 1;
 ```
 
 > **COALESCE(end_date, '9999-12-31')** is the standard SCD Type 2 trick for "currently active" records that have no end date.
+
+
+**Example:**
+
+Input `SalaryHistory`:
+| employee_id | salary | effective_date | end_date |
+|---|---|---|---|
+| 1 | 60000 | 2022-01-01 | 2023-01-01 |
+| 1 | 65000 | 2023-01-01 | NULL |
+
+Output (as of 2023-06-15): `employee_id = 1, salary = 65000`
 
 ---
 
@@ -595,6 +1004,22 @@ GROUP BY step_name
 ORDER BY MIN(step_number);
 ```
 
+
+**Example:**
+
+Input `FunnelEvents`:
+| user_id | step |
+|---|---|
+| 1 | 1 |
+| 1 | 2 |
+| 1 | 3 |
+| 2 | 1 |
+
+Output:
+| total_users | step1_viewed | step2_added_to_cart | step3_purchased | overall_conversion_pct |
+|---|---|---|---|---|
+| 2 | 2 | 1 | 1 | 50.0 |
+
 ---
 
 ### Pattern 32 — Cohort Analysis (Retention)
@@ -618,6 +1043,22 @@ ORDER BY cohort_month, month_number;
 ```
 
 > Month 0 = first month (acquisition). Month 1 = users who came back the following month. Divide each month's count by the cohort's Month 0 count to get **retention rate**.
+
+
+**Example:**
+
+Input `Events`:
+| user_id | event_date |
+|---|---|
+| 1 | 2024-01-05 |
+| 1 | 2024-02-10 |
+| 2 | 2024-01-20 |
+
+Output:
+| cohort_month | month_number | active_users |
+|---|---|---|
+| 2024-01 | 0 | 2 |
+| 2024-01 | 1 | 1 |
 
 ---
 
@@ -647,6 +1088,13 @@ FROM Employee;
 
 > The MySQL approach picks the middle row(s): for odd total, `FLOOR = CEIL` → one row; for even total, they differ by one → AVG of the two middle values.
 
+
+**Example:**
+
+Input `Employee.salary`: `[3000, 4000, 5000, 6000]`
+
+Output: `median = 4500` (avg of the two middle values, 4000 and 5000)
+
 ---
 
 ### Pattern 34 — Forward Fill (Last Observation Carried Forward)
@@ -667,6 +1115,25 @@ SELECT date, price,
    ORDER BY s2.date DESC LIMIT 1) AS filled_price
 FROM StockPrices s1;
 ```
+
+
+**Example:**
+
+Input `StockPrices`:
+| date | price |
+|---|---|
+| 2024-01-01 | 100 |
+| 2024-01-02 | NULL |
+| 2024-01-03 | NULL |
+| 2024-01-04 | 110 |
+
+Output:
+| date | filled_price |
+|---|---|
+| 2024-01-01 | 100 |
+| 2024-01-02 | 100 |
+| 2024-01-03 | 100 |
+| 2024-01-04 | 110 |
 
 ---
 
@@ -691,6 +1158,19 @@ SELECT customer_id FROM Orders WHERE MONTH(order_date) = 2;
 -- EXCEPT   → LEFT JOIN anti-join (WHERE right.key IS NULL)
 ```
 
+
+**Example:**
+
+Input `Orders`:
+| customer_id | order_date |
+|---|---|
+| 1 | 2024-01-05 |
+| 1 | 2024-02-05 |
+| 2 | 2024-01-10 |
+
+Output — INTERSECT (ordered in both Jan and Feb): `customer_id = 1`
+Output — EXCEPT (Jan but not Feb): `customer_id = 2`
+
 ---
 
 ### Pattern 36 — Dynamic Top-N per Group with Ties
@@ -713,6 +1193,18 @@ FROM (
 WHERE dr <= 2;
 ```
 
+
+**Example:**
+
+Input `Employee`:
+| department | employee | salary |
+|---|---|---|
+| Sales | A | 9000 |
+| Sales | B | 9000 |
+| Sales | C | 8000 |
+
+Output (top 2 salary levels, DENSE_RANK): `A, B` (tied at rank 1), `C` (rank 2) — 3 rows returned for "top 2".
+
 ---
 
 ### Pattern 37 — Running Balance / Ledger Pattern
@@ -728,6 +1220,21 @@ ORDER BY account_id, txn_date, txn_id;
 ```
 
 > The `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW` frame is key — it's a cumulative sum from the very first row in the partition up to and including the current one. Without this frame specification, the default may include future rows.
+
+
+**Example:**
+
+Input `Transactions` (account 1):
+| txn_id | txn_date | amount | txn_type |
+|---|---|---|---|
+| 1 | 2024-01-01 | 100 | credit |
+| 2 | 2024-01-02 | 30 | debit |
+
+Output:
+| txn_id | running_balance |
+|---|---|
+| 1 | 100 |
+| 2 | 70 |
 
 ---
 
@@ -761,6 +1268,17 @@ CROSS APPLY (
 
 > Without LATERAL, correlated subqueries can only return a scalar value. LATERAL lets the subquery see and use the outer row, effectively running once per outer row — powerful but potentially slow on large datasets without good indexes.
 
+
+**Example:**
+
+Input: `Department` (Sales), `Employee` (Sales: A/9000, B/8000, C/7000)
+
+Output:
+| department | name | salary |
+|---|---|---|
+| Sales | A | 9000 |
+| Sales | B | 8000 |
+
 ---
 
 ### Pattern 39 — Slowly Changing Dimensions (SCD) Type 2
@@ -781,6 +1299,17 @@ WHERE customer_id = 42
 -- 1. UPDATE old row: SET expiry_date = TODAY, is_current = 0
 -- 2. INSERT new row: effective_date = TODAY, expiry_date = NULL, is_current = 1
 ```
+
+
+**Example:**
+
+Input `DimCustomer`:
+| customer_id | address | effective_date | expiry_date | is_current |
+|---|---|---|---|---|
+| 42 | Old St | 2022-01-01 | 2023-01-01 | 0 |
+| 42 | New Ave | 2023-01-01 | NULL | 1 |
+
+Output (current record): `customer_id = 42, address = New Ave`
 
 ---
 
