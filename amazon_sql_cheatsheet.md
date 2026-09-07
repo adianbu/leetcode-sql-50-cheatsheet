@@ -2328,6 +2328,12 @@ Add to the SELECT with the existing GROUP BY — no extra join needed.
 ### Problem
 `sales(sale_id, product_id, price, quantity, sale_date)`. Return per product: `total_sales`=SUM(price×qty), `avg_price`=AVG(price), `transaction_count`=COUNT(*). NULLs excluded from SUM/AVG but counted. Order by total_sales DESC.
 
+### Clarifying Questions to Ask
+- **NULLs in price/quantity:** Should rows with NULL price still count toward `transaction_count`? *(Yes — COUNT(*) counts all rows; SUM/AVG ignore NULLs.)*
+- **NULL result:** If ALL prices for a product are NULL, should `total_sales` be NULL or 0? *(NULL — don't coerce unless told to.)*
+- **Scope:** Should products that exist but have no sales rows appear in the output? *(No — only products present in the sales table.)*
+- **Ordering tie-break:** If two products have equal `total_sales`, how should we break the tie? *(Ask — common answer: secondary sort by product_id.)*
+
 ### PySpark
 ```python
 from pyspark.sql import functions as F
@@ -2396,6 +2402,12 @@ A: Use a non-nullable column for count (e.g. `sale_id`). `count()` in pandas ski
 
 ### Problem
 `employees(emp_id, full_name, email, hire_date, salary, department)`. Derive: `first_name`, `years_employed` ((2024-01-01−hire_date)/365.25 rounded 2dp), `salary_band` (junior/mid/senior). Order by emp_id.
+
+### Clarifying Questions to Ask
+- **Multi-word names:** If `full_name` is "Mary Jo Smith", should `first_name` be "Mary" (everything before first space)? *(Yes — take the first space-delimited token.)*
+- **Reference date:** Is the cutoff date always 2024-01-01, or should I use the current date? *(Confirm with interviewer — problems often specify a fixed date.)*
+- **NULL hire_date:** Should `years_employed` return NULL or 0 when `hire_date` is missing? *(NULL — don't impute unless stated.)*
+- **Salary band boundaries:** Is 60000 "junior" or "mid"? Is 100000 "mid" or "senior"? *(Clarify inclusive/exclusive — typically < 60k = junior, 60k–99999 = mid, ≥ 100k = senior.)*
 
 ### PySpark
 ```python
@@ -2466,6 +2478,12 @@ employees["full_name"].str.split(" ").str[-1]
 ### Problem
 Pair every product with every promotion. `discounted_price = base_price × (1 − discount_pct/100)` rounded 2dp. Order by product_id, promo_id.
 
+### Clarifying Questions to Ask
+- **Cardinality:** Should every product be paired with every promotion, including inactive ones? *(Confirm — if there's an `active` flag, filter first.)*
+- **Discount > 100%:** Can `discount_pct` exceed 100, producing a negative price? Should I clamp to 0? *(Ask — clarifies data quality assumptions.)*
+- **Rounding:** Should `discounted_price` always be rounded to 2 decimal places even if it's a whole number (e.g., 90.00 vs 90)? *(Yes — ROUND to 2 dp as shown in output.)*
+- **Expected row count:** If there are 100 products and 10 promotions, do you expect exactly 1000 output rows? *(Yes — no filtering unless told otherwise.)*
+
 ### PySpark
 ```python
 from pyspark.sql import functions as F
@@ -2524,6 +2542,12 @@ SQL CROSS JOIN is the set-based equivalent of Python's nested for-loop.
 
 ### Problem
 UNION ALL `sales_north` + `sales_south`, LEFT JOIN `products` for category. Per region+category: `total_sales`, `avg_sale_amount`, `transaction_count`. NULL amounts excluded from aggs. Order by region ASC, total_sales DESC.
+
+### Clarifying Questions to Ask
+- **Duplicate sale_ids:** Can the same `sale_id` appear in both north and south tables? Should I dedup? *(Assume distinct by region unless told otherwise.)*
+- **NULL amounts:** Should rows with NULL `amount` be excluded from SUM/AVG but still counted in `transaction_count`? *(Yes — standard NULL behavior.)*
+- **Orphaned product_ids:** If a `product_id` in sales doesn't exist in `products`, should that row be included (with NULL category)? *(Clarify — LEFT JOIN includes it; INNER JOIN excludes it.)*
+- **Ordering:** Is the sort by `total_sales DESC` within each region, or globally across all regions? *(Within each region.)*
 
 ### PySpark
 ```python
@@ -2600,6 +2624,12 @@ pd.concat([df1, df2]).drop_duplicates().reset_index(drop=True)
 ### Problem
 `orders(order_id, customer_id, order_date, amount, shipping_type)`. Add `order_size`, `is_express` (1/0), `priority_score` = amount/100 + 10×is_express rounded 2dp. Order by priority_score DESC.
 
+### Clarifying Questions to Ask
+- **Boundary values:** Is an `amount` of exactly 100 "small" or "medium"? Exactly 500 "medium" or "large"? *(Confirm — typically small < 100, medium 100–500, large > 500.)*
+- **Other express types:** Is 'express' the only value that sets `is_express = 1`? What about 'overnight' or 'priority'? *(Ask — may be a list of values.)*
+- **NULL amount:** If `amount` is NULL, what `order_size` should be assigned? *(Usually NULL — falls through all CASE conditions.)*
+- **Priority score formula:** Is `10 × is_express` an additive bonus, or should it multiply the full score? *(Confirm the formula exactly before coding.)*
+
 ### PySpark
 ```python
 from pyspark.sql import functions as F
@@ -2664,6 +2694,12 @@ df.assign(is_express=lambda d: (d.shipping_type=="express").astype(int),
 ### Problem
 `survey_responses(response_id, question_id, answer, respondent_age)`. Map answer→numeric, age→group. Order by response_id.
 
+### Clarifying Questions to Ask
+- **Other answer values:** What should happen with answers other than Yes/No/Maybe (e.g., "N/A", "Skip")? *(NULL per problem statement — confirm.)*
+- **Age boundary at 30 and 50:** Is age 30 in "under_30" or "30_to_50"? Is 50 in "30_to_50" or "over_50"? *(Typically: < 30 = under_30; 30–50 inclusive = 30_to_50; > 50 = over_50.)*
+- **NULL age:** If `respondent_age` is NULL, should `age_group` be NULL or a default category? *(NULL — don't assume.)*
+- **NULL answer:** Should a NULL `answer` map to NULL `answer_numeric` or 0? *(NULL per the ELSE NULL clause.)*
+
 ### PySpark
 ```python
 from pyspark.sql import functions as F
@@ -2725,6 +2761,12 @@ pd.cut(df["respondent_age"], bins=[0,29,50,np.inf], labels=["under_30","30_to_50
 
 ### Problem
 `test_results(test_id, student_id, subject, score, test_date)`. Per subject: `student_count` (distinct), `avg_score`, `min_score`, `max_score`, `std_dev` (sample), `median_score`. Order by subject.
+
+### Clarifying Questions to Ask
+- **Sample vs population stddev:** Should standard deviation use (n−1) or (n) in the denominator? *(Confirm — sample stddev (n−1) is more common for interview data.)*
+- **Single-student subject:** If a subject has only one student, `STDDEV_SAMP` returns NULL — is that acceptable? *(Yes — standard behavior.)*
+- **Multiple tests per student:** If a student took the same subject test 3 times, do they count as 1 or 3 in `student_count`? *(COUNT DISTINCT student_id = 1.)*
+- **Exact vs approximate median:** Is an exact median required, or is an approximation acceptable? *(Exact for SQL/pandas; approximate (percentile_approx) acceptable for PySpark.)*
 
 ### PySpark
 ```python
@@ -2791,6 +2833,12 @@ A: pandas median is exact (sorts the series). PySpark `percentile_approx` is app
 
 ### Problem
 `sales(sale_id, region, product_category, quarter, revenue, quantity)`. Pivot to one row per (region, product_category) with q1–q4 revenue and quantity. Order by region, product_category.
+
+### Clarifying Questions to Ask
+- **Multiple rows per (region, category, quarter):** If there are multiple sales for the same combination, should I SUM them or is it guaranteed to be one per bucket? *(SUM — always aggregate, never assume uniqueness.)*
+- **Missing quarters:** Should quarters with no sales show NULL or 0 in the pivot columns? *(NULL — consistent with SUM(CASE WHEN ...) returning NULL on no match; use COALESCE if 0 is needed.)*
+- **Fixed quarters:** Are quarters always Q1–Q4, or could future data have Q5 or monthly labels? *(Confirm — if dynamic, the approach changes significantly.)*
+- **Revenue rounding:** Should `NULL` revenue (no sales in that quarter) also be rounded, or left as NULL? *(Left as NULL — ROUND(NULL) = NULL.)*
 
 ### PySpark
 ```python
@@ -2871,6 +2919,13 @@ A: When you omit the values list — Spark does a first pass to collect distinct
 ### Problem
 `raw_orders(order_id, customer_email, product_name, quantity, unit_price, order_date, status)`. Keep first per order_id. Add `is_valid_email` (1/0), `is_clean` (all checks pass). Order by order_id.
 
+### Clarifying Questions to Ask
+- **"First occurrence" definition:** How do I determine which duplicate to keep — lowest `order_id` value, earliest `order_date`, or insertion order? *(Clarify tiebreak column — critical for correctness.)*
+- **Email validation strictness:** Is just checking for '@' sufficient, or do you need full RFC-compliant validation (domain, TLD)? *(Confirm — this determines regex complexity.)*
+- **Cutoff date:** Is 2024-12-31 the fixed cutoff, or should it be parameterized? *(Confirm — in a real pipeline this would be a parameter.)*
+- **Output columns:** Should I return all original columns plus the flags, or just key columns? *(Return all — unless the problem specifies otherwise.)*
+- **NULL quantity:** Is quantity=0 valid, or should it also fail the `is_clean` check (i.e., only positive quantities are clean)? *(Usually quantity > 0 required.)*
+
 ### PySpark
 ```python
 from pyspark.sql import functions as F, Window
@@ -2940,6 +2995,13 @@ A: Only if the DataFrame is sorted first. `drop_duplicates` keeps the first occu
 
 ### Problem
 `reviews(review_id, product_id, review_text, review_date)`. Compute: `word_count`, `char_count`, `avg_word_length`, `contains_negative` (1/0), `sentiment_score`. Order by review_id.
+
+### Clarifying Questions to Ask
+- **Word definition:** Are words whitespace-delimited tokens? How should punctuation attached to words (e.g., "great!") be handled — does "great!" match the keyword "great"? *(Clarify — substring `.contains()` would match; word-boundary regex wouldn't.)*
+- **Case sensitivity:** Is keyword matching case-insensitive? *(Yes — confirmed by problem using LOWER/ILIKE.)*
+- **Substring vs whole-word:** Should "good" match "goodness"? *(Confirm — usually substring match for simplicity in interviews.)*
+- **Sentiment score range:** Can `sentiment_score` be negative? Is there a floor/ceiling? *(No floor — can be negative if more negative keywords than positive.)*
+- **Empty review_text:** Should `word_count` be 0 or NULL for an empty string? *(Clarify — ARRAY_LENGTH on empty gives NULL; handle with COALESCE.)*
 
 ### PySpark
 ```python
@@ -3025,6 +3087,12 @@ df["review_text"].str.lower().str.count(r"\bgreat\b")  # exact word matches
 ### Problem
 `product_listings(listing_id, product_name, metadata, list_date)` where metadata = `color=red|size=M|weight=1.5kg`. Extract `color`, `size`, `weight_value` (numeric). Order by listing_id.
 
+### Clarifying Questions to Ask
+- **Delimiter guarantee:** Is the format always `key=value` pairs separated by `|`? Can there be spaces around `=` or `|`? *(Confirm — use TRIM to be safe.)*
+- **Duplicate keys:** If the same key appears twice (e.g., `color=red|color=blue`), which value should I use — first or last? *(Ask — MAX picks the lexicographically last; clarify.)*
+- **Absent keys:** Should missing `color`/`size` return empty string `''` or NULL? *(Per problem: empty string for color/size, NULL for weight_value.)*
+- **Weight units:** Is the weight always in the format `<number><unit>` (e.g., `1.5kg`)? Can it be `1,500g` (comma as decimal)? *(Confirm data format before regex.)*
+
 ### PySpark
 ```python
 from pyspark.sql import functions as F
@@ -3103,6 +3171,12 @@ df["metadata"].apply(json.loads)  # if metadata is valid JSON string
 ### Problem
 `user_activity(user_id, activity_date, activity_type)`. Per user: `first_activity`, `last_activity`, `active_days` (distinct), `tenure_days`, `activity_frequency` = active_days/GREATEST(tenure_days,1) rounded 2dp.
 
+### Clarifying Questions to Ask
+- **"Active day" definition:** Does each row in `user_activity` represent one action (so multiple rows on the same date = 1 active day), or is it already one row per day? *(Count DISTINCT activity_date.)*
+- **Single-activity users:** If a user has only one activity (tenure_days = 0), should `activity_frequency` be 1.0 (using GREATEST(1)) or NULL? *(Confirm — problem says use MAX(tenure_days, 1) to avoid division by zero.)*
+- **Users with no activity:** Should the output only include users present in the table, or all users from a users reference table? *(Only users in `user_activity`.)*
+- **Date range:** Should tenure be calculated as last_activity − first_activity inclusive or exclusive? *(Exclusive — `datediff` gives the gap in days, not the count of days including both endpoints.)*
+
 ### PySpark
 ```python
 from pyspark.sql import functions as F
@@ -3171,6 +3245,12 @@ ua.set_index("activity_date").groupby("user_id")["user_id"].resample("7D").count
 ### Problem
 `store_sales(sale_id, store_id, sale_date, amount)`. Add `sale_rank` and `sale_dense_rank` per store. Order by store_id, amount DESC, sale_date.
 
+### Clarifying Questions to Ask
+- **Partition scope:** Should rankings be per store (PARTITION BY store_id) or global across all stores? *(Per store — confirmed by the problem.)*
+- **Tie-breaking within same rank:** If two sales have the same amount, do they share a rank (RANK/DENSE_RANK) or get unique ranks (ROW_NUMBER)? *(They share rank — use RANK or DENSE_RANK.)*
+- **Output:** Should I return all sales with their ranks, or only the top-N per store? *(All sales — filter is a follow-up.)*
+- **RANK vs DENSE_RANK use case:** When would the interviewer prefer RANK over DENSE_RANK for this dataset? *(RANK for "nth place" leaderboards with gaps; DENSE_RANK for "top 3 tier" selections without missing ranks.)*
+
 ### PySpark
 ```python
 from pyspark.sql import functions as F, Window
@@ -3229,6 +3309,12 @@ df[df["sale_dense_rank"] <= 3]
 ### Problem
 `sensor_readings(sensor_id, reading_date, value)`. Replace NULL value with most recent prior non-null per sensor. Leading NULLs stay NULL.
 
+### Clarifying Questions to Ask
+- **Leading NULLs:** If a sensor's first readings are all NULL (no prior non-null exists), should they stay NULL or be filled with a default? *(Stay NULL — per problem statement.)*
+- **Partition independence:** Should sensor 1's values ever fill sensor 2's NULLs? *(No — fills are strictly within each sensor_id partition.)*
+- **Unique dates:** Is `(sensor_id, reading_date)` guaranteed unique, or can there be multiple readings on the same date? *(Clarify — if not unique, ORDER BY within the window is ambiguous.)*
+- **Backward fill:** After forward-filling, should any remaining NULLs be backward-filled? *(No — per problem statement, only forward fill.)*
+
 ### PySpark
 ```python
 from pyspark.sql import functions as F, Window
@@ -3284,6 +3370,12 @@ df["value"].ffill().fillna(0)   # replace any remaining NaN with 0
 
 ### Problem
 `employees(emp_id, name, department, salary, city)`. Per department: `total_salary`, `avg_salary` (2dp), `employee_count` (all rows incl. NULL salary). Order by department.
+
+### Clarifying Questions to Ask
+- **NULL salaries:** Should employees with NULL salaries be included in `employee_count`? *(Yes — COUNT(*) counts all rows.)*
+- **All-NULL department:** If every employee in a department has NULL salary, should `total_salary` and `avg_salary` be NULL or 0? *(NULL — SUM/AVG of all NULLs is NULL.)*
+- **Rounding:** Should `avg_salary` always show 2 decimal places even for whole numbers (e.g., 139904.00 vs 139904)? *(Yes — ROUND to 2 dp.)*
+- **Departments with no employees:** Should the output include departments from a departments reference table that have no employees? *(No — only departments present in the employees table, unless told otherwise.)*
 
 ### PySpark
 ```python
@@ -3347,6 +3439,13 @@ result.query("employee_count > 2")
 
 ### Problem
 `slow_queries(query_id, table_name, where_columns, join_columns, order_columns, execution_time_ms, row_count)`. Explode comma-separated columns per usage_type. Aggregate frequency, avg_execution_time, priority_score = freq×avg_time/1000 rounded 2dp. Order by score DESC, then usage_type (order→where→join), then column_name.
+
+### Clarifying Questions to Ask
+- **NULL column lists:** If `where_columns`, `join_columns`, and `order_columns` are all NULL for a row, should that row be skipped entirely? *(Yes — no columns to explode, so it contributes nothing.)*
+- **Duplicate columns in one list:** If `where_columns = 'status,status,amount'`, should 'status' be counted once or twice? *(Twice by default — deduplicate only if told to.)*
+- **Column in multiple lists:** If 'customer_id' appears in both `where_columns` and `join_columns` for the same query, should it be counted as two separate (column, usage_type) entries? *(Yes — usage types are tracked separately.)*
+- **avg_execution_time precision:** Should `avg_execution_time` be rounded in the output? *(Not specified in the problem — leave unrounded unless asked.)*
+- **Priority score formula units:** Is dividing by 1000 converting ms to seconds for the score? *(Yes — confirm this is intentional, not a typo.)*
 
 ### PySpark
 ```python
